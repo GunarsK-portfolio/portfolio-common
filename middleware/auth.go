@@ -59,7 +59,9 @@ func (m *AuthMiddleware) validateWithAuthService(token string) (bool, error) {
 
 	var result map[string]bool
 	body, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(body, &result)
+	if err := json.Unmarshal(body, &result); err != nil {
+		return false, err
+	}
 
 	return result["valid"], nil
 }
