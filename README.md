@@ -1,5 +1,9 @@
 # Portfolio Common
 
+![CI](https://github.com/GunarsK-portfolio/portfolio-common/workflows/CI/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/GunarsK-portfolio/portfolio-common)](https://goreportcard.com/report/github.com/GunarsK-portfolio/portfolio-common)
+[![codecov](https://codecov.io/gh/GunarsK-portfolio/portfolio-common/branch/main/graph/badge.svg)](https://codecov.io/gh/GunarsK-portfolio/portfolio-common)
+
 Shared Go package for common code across portfolio microservices.
 
 ## Overview
@@ -96,16 +100,30 @@ count, err := actionLogRepo.CountActionsByResource("file", fileID)
 
 ## Development
 
-### Installing Dependencies
+### Available Commands
 
+Using Task:
 ```bash
-go mod download
+task build          # Build all packages (verify compilation)
+task fmt            # Format code
+task test           # Run tests
+task test-coverage  # Run tests with coverage report
+task lint           # Run golangci-lint
+task vet            # Run go vet
+task tidy           # Tidy and verify go.mod
+task security       # Run gosec security scanner
+task vuln           # Check for vulnerabilities
+task ci             # Run all CI checks locally
+task clean          # Clean build artifacts
+task install-tools  # Install dev tools (golangci-lint, govulncheck, etc.)
 ```
 
-### Running Tests
-
+Using Go directly:
 ```bash
-go test ./...
+go build ./...       # Build all packages
+go test ./...        # Run tests
+go mod tidy          # Tidy dependencies
+go mod verify        # Verify dependencies
 ```
 
 ## Services Using This Module
