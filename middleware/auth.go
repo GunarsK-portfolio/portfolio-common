@@ -47,10 +47,18 @@ func (m *AuthMiddleware) ValidateToken() gin.HandlerFunc {
 }
 
 func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
-	url := fmt.Sprintf("%s/auth/validate", m.authServiceURL)
+	validateURL := fmt.Sprintf("%s/auth/validate", m.authServiceURL)
 
 	reqBody, _ := json.Marshal(map[string]string{"token": token})
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBody))
+
+	req, err := http.NewRequest(http.MethodPost, validateURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return 0, err
 	}
