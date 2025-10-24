@@ -24,6 +24,9 @@ type Skill struct {
 	DisplayOrder int        `json:"displayOrder,omitempty" gorm:"column:display_order"`
 	CreatedAt    time.Time  `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt    time.Time  `json:"updatedAt" gorm:"column:updated_at"`
+
+	// Computed field
+	Type string `json:"type" gorm:"-"`
 }
 
 func (Skill) TableName() string {

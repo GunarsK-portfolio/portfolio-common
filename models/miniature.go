@@ -11,6 +11,9 @@ type MiniatureTheme struct {
 	Miniatures   []MiniatureProject `json:"miniatures,omitempty" gorm:"foreignKey:ThemeID"`
 	CreatedAt    time.Time          `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt    time.Time          `json:"updatedAt" gorm:"column:updated_at"`
+
+	// Computed fields
+	CoverImage string `json:"coverImage,omitempty" gorm:"-"`
 }
 
 func (MiniatureTheme) TableName() string {
@@ -34,6 +37,12 @@ type MiniatureProject struct {
 	// Associations
 	Theme          *MiniatureTheme `json:"theme,omitempty" gorm:"foreignKey:ThemeID"`
 	MiniatureFiles []MiniatureFile `json:"-" gorm:"foreignKey:MiniatureProjectID"`
+
+	// Computed fields (populated by repository layer)
+	Files      []MiniatureFile `json:"-" gorm:"-"`
+	Images     []Image         `json:"images,omitempty" gorm:"-"`
+	Techniques []string        `json:"techniques,omitempty" gorm:"-"`
+	Paints     []Paint         `json:"paints,omitempty" gorm:"-"`
 }
 
 func (MiniatureProject) TableName() string {
