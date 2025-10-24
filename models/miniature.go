@@ -53,3 +53,17 @@ type MiniatureFile struct {
 func (MiniatureFile) TableName() string {
 	return "miniatures.miniature_files"
 }
+
+// Image is the simplified view for frontend
+type Image struct {
+	ID      int64  `json:"id"`
+	URL     string `json:"url"`
+	Caption string `json:"caption"`
+}
+
+// Paint represents a paint used in a miniature project
+type Paint struct {
+	Name         string `json:"name"`
+	Manufacturer string `json:"manufacturer"`
+	Color        string `json:"color"`
+}
