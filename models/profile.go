@@ -11,11 +11,9 @@ type Profile struct {
 	Phone        string       `json:"phone,omitempty"`
 	Location     string       `json:"location,omitempty"`
 	AvatarFileID *int64       `json:"avatarFileId,omitempty" gorm:"column:avatar_file_id"`
-	AvatarFile   *StorageFile `json:"-" gorm:"foreignKey:AvatarFileID"`
-	AvatarURL    string       `json:"avatarUrl,omitempty" gorm:"-"`
+	AvatarFile   *StorageFile `json:"avatarFile,omitempty" gorm:"foreignKey:AvatarFileID"` // Now exposed to JSON
 	ResumeFileID *int64       `json:"resumeFileId,omitempty" gorm:"column:resume_file_id"`
-	ResumeFile   *StorageFile `json:"-" gorm:"foreignKey:ResumeFileID"`
-	ResumeURL    string       `json:"resumeUrl,omitempty" gorm:"-"`
+	ResumeFile   *StorageFile `json:"resumeFile,omitempty" gorm:"foreignKey:ResumeFileID"` // Now exposed to JSON
 	CreatedAt    time.Time    `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt    time.Time    `json:"updatedAt" gorm:"column:updated_at"`
 }

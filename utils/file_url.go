@@ -1,6 +1,10 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/GunarsK-portfolio/portfolio-common/models"
+)
 
 // BuildFileURL constructs the full URL for a file stored in MinIO/S3
 // Format: {filesAPIURL}/files/{fileType}/{s3Key}
@@ -10,4 +14,11 @@ func BuildFileURL(filesAPIURL, fileType, s3Key string) string {
 		return ""
 	}
 	return fmt.Sprintf("%s/files/%s/%s", filesAPIURL, fileType, s3Key)
+}
+
+// PopulateFileURL sets the URL field on a StorageFile if it's not nil
+func PopulateFileURL(file *models.StorageFile, filesAPIURL string) {
+	if file != nil && file.S3Key != "" {
+		file.URL = BuildFileURL(filesAPIURL, file.FileType, file.S3Key)
+	}
 }
