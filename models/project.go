@@ -27,9 +27,6 @@ type PortfolioProject struct {
 	// Associations
 	ImageFile    *StorageFile `json:"imageFile,omitempty" gorm:"foreignKey:ImageFileID"`
 	Technologies []Skill      `json:"technologies,omitempty" gorm:"many2many:portfolio.project_technologies;joinForeignKey:ProjectID;joinReferences:SkillID"`
-
-	// Computed fields
-	ImageURL string `json:"imageUrl,omitempty" gorm:"-"`
 }
 
 func (PortfolioProject) TableName() string {

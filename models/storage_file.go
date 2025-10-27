@@ -10,6 +10,7 @@ type StorageFile struct {
 	FileSize  int64     `json:"fileSize" gorm:"column:file_size"`
 	MimeType  string    `json:"mimeType" gorm:"column:mime_type"`
 	FileType  string    `json:"fileType" gorm:"column:file_type"`
+	URL       string    `json:"url,omitempty" gorm:"-"` // Computed field
 	CreatedAt time.Time `json:"createdAt" gorm:"column:created_at"`
 }
 
