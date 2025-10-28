@@ -1,0 +1,38 @@
+language: en-US
+early_access: false
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+  tools:
+    golangci-lint:
+      enabled: true
+    yamllint:
+      enabled: true
+chat:
+  auto_reply: true
+tone_instructions: |
+  You are reviewing Go shared library code for a portfolio management system.
+
+  Focus on:
+  - API design (clear interfaces, good abstraction, minimal dependencies)
+  - Reusability (generic solutions, configurable behavior, no hardcoded values)
+  - Documentation (clear godoc, usage examples, exported functions well-documented)
+  - Backwards compatibility (avoid breaking changes, deprecation notices)
+  - Go idioms and best practices
+  - Error handling (proper error types, wrapping, context)
+  - Testing (comprehensive test coverage, table-driven tests, examples)
+  - Performance (avoid unnecessary allocations, efficient algorithms)
+  - Thread safety (proper use of mutexes, channels, concurrent patterns)
+  - Zero dependencies or minimal, well-justified dependencies
+
+  This is SHARED CODE used across multiple services.
+  Breaking changes affect all dependent services - be extra cautious.
+  Suggest better abstractions and interfaces when appropriate.
+  Ensure comprehensive documentation and test coverage.
