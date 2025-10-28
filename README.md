@@ -104,18 +104,27 @@ count, err := actionLogRepo.CountActionsByResource("file", fileID)
 
 Using Task:
 ```bash
-task build          # Build all packages (verify compilation)
-task fmt            # Format code
-task test           # Run tests
-task test-coverage  # Run tests with coverage report
-task lint           # Run golangci-lint
-task vet            # Run go vet
-task tidy           # Tidy and verify go.mod
-task security       # Run gosec security scanner
-task vuln           # Check for vulnerabilities
-task ci             # Run all CI checks locally
-task clean          # Clean build artifacts
-task install-tools  # Install dev tools (golangci-lint, govulncheck, etc.)
+# Build and test
+task build               # Build all packages (verify compilation)
+task test                # Run tests
+task test:coverage       # Run tests with coverage report
+task clean               # Clean build artifacts
+
+# Code quality
+task format              # Format code with gofmt
+task tidy                # Tidy and verify go.mod
+task lint                # Run golangci-lint
+task vet                 # Run go vet
+
+# Security
+task security:scan       # Run gosec security scanner
+task security:vuln       # Check for vulnerabilities with govulncheck
+
+# Development tools
+task dev:install-tools   # Install dev tools (golangci-lint, govulncheck, etc.)
+
+# CI/CD
+task ci:all              # Run all CI checks (format, tidy, lint, vet, test, vuln)
 ```
 
 Using Go directly:
