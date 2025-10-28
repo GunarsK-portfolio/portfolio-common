@@ -1,0 +1,7 @@
+{
+  "name": "portfolio-common",
+  "private": true,
+  "devDependencies": {
+    "markdownlint-cli2": "^0.18.1"
+  }
+}

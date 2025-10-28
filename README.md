@@ -132,7 +132,7 @@ task security:vuln       # Check for vulnerabilities with govulncheck
 task dev:install-tools   # Install dev tools (golangci-lint, govulncheck, etc.)
 
 # CI/CD
-task ci:all              # Run all CI checks (format, tidy, lint, vet, test, vuln)
+task ci:all              # Run all CI checks
 ```
 
 Using Go directly:
