@@ -8,7 +8,9 @@ Shared Go package for common code across portfolio microservices.
 
 ## Overview
 
-This module provides shared functionality used by multiple services in the portfolio application:
+This module provides shared functionality used by multiple services in
+the portfolio application:
+
 - Database models and repositories
 - Common utilities
 - Shared types
@@ -18,6 +20,7 @@ This module provides shared functionality used by multiple services in the portf
 ### `config`
 
 Environment variable helpers:
+
 - `GetEnv()` - Get env var with default value
 - `GetEnvRequired()` - Get required env var or panic
 - `GetEnvBool()` - Get boolean env var
@@ -27,17 +30,21 @@ Environment variable helpers:
 ### `database`
 
 Database connection utilities:
+
 - `Connect()` - PostgreSQL connection with connection pooling
 
 ### `middleware`
 
 Gin middleware:
+
 - `AuthMiddleware` - JWT token validation via auth-service
 
 ### `repository`
 
 Shared database repository implementations:
-- `ActionLogRepository` - Audit logging for user actions (logins, downloads, uploads, etc.)
+
+- `ActionLogRepository` - Audit logging for user actions (logins,
+  downloads, uploads, etc.)
 
 ## Usage
 
@@ -103,6 +110,7 @@ count, err := actionLogRepo.CountActionsByResource("file", fileID)
 ### Available Commands
 
 Using Task:
+
 ```bash
 # Build and test
 task build               # Build all packages (verify compilation)
@@ -128,6 +136,7 @@ task ci:all              # Run all CI checks (format, tidy, lint, vet, test, vul
 ```
 
 Using Go directly:
+
 ```bash
 go build ./...       # Build all packages
 go test ./...        # Run tests

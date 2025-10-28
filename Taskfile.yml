@@ -80,9 +80,15 @@ tasks:
       - go install github.com/gordonklaus/ineffassign@latest
       - echo "All development tools installed successfully!"
 
+  # Linting
+  lint:markdown:
+    desc: Lint Markdown files
+    cmds:
+      - npx markdownlint-cli2
+
   # CI/CD
   ci:all:
-    desc: Run all CI checks (format, tidy, lint, vet, test, vuln)
+    desc: Run all CI checks (format, tidy, lint, vet, test, vuln, lint:markdown)
     cmds:
       - task: format
       - task: tidy
@@ -90,4 +96,5 @@ tasks:
       - task: vet
       - task: test
       - task: security:vuln
-      - echo "✓ All CI checks passed!"
+      - task: lint:markdown
+      - echo "All CI checks passed!"
