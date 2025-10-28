@@ -1,0 +1,20 @@
+language: en-US
+early_access: false
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+  tools:
+    golangci-lint:
+      enabled: true
+    yamllint:
+      enabled: true
+chat:
+  auto_reply: true
+tone_instructions: "SHARED LIBRARY: Focus on API design, backwards compatibility, documentation, testing, and minimal dependencies. Breaking changes affect all services - be extra cautious."
