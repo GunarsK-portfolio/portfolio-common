@@ -70,15 +70,20 @@ type Image struct {
 	Caption string `json:"caption"`
 }
 
-// MiniaturePaint represents a paint in the master paint list (cl_paints table)
+// MiniaturePaint represents a paint in the master paint list (cl_paints table).
+// This model is used for managing the paint catalog with CRUD operations.
+// Paints are categorized by type and identified by the combination of name and manufacturer.
 type MiniaturePaint struct {
-	ID           int64     `json:"id" gorm:"primaryKey"`
-	Name         string    `json:"name" binding:"required"`
-	Manufacturer string    `json:"manufacturer" binding:"required"`
-	ColorHex     *string   `json:"colorHex,omitempty" gorm:"column:color_hex"`
-	PaintType    *string   `json:"paintType,omitempty" gorm:"column:paint_type"`
-	CreatedAt    time.Time `json:"createdAt" gorm:"column:created_at"`
-	UpdatedAt    time.Time `json:"updatedAt" gorm:"column:updated_at"`
+	ID           int64  `json:"id" gorm:"primaryKey"`
+	Name         string `json:"name" binding:"required"`
+	Manufacturer string `json:"manufacturer" binding:"required"`
+	// ColorHex is the hexadecimal color code in #RRGGBB or #RGB format (e.g., #FF5733, #F00)
+	ColorHex *string `json:"colorHex,omitempty" gorm:"column:color_hex" binding:"omitempty,hexcolor"`
+	// PaintType categorizes the paint (Base, Layer, Shade, Wash, Contrast, Dry, Technical, Metallic, Air, Primer, Edge, Glaze, Ink)
+	// Database enforces these values via CHECK constraint
+	PaintType *string   `json:"paintType,omitempty" gorm:"column:paint_type"`
+	CreatedAt time.Time `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt time.Time `json:"updatedAt" gorm:"column:updated_at"`
 }
 
 func (MiniaturePaint) TableName() string {
