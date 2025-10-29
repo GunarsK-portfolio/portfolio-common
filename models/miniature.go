@@ -39,10 +39,10 @@ type MiniatureProject struct {
 	MiniatureFiles []MiniatureFile `json:"-" gorm:"foreignKey:MiniatureProjectID"`
 
 	// Computed fields (populated by repository layer)
-	Files      []MiniatureFile `json:"-" gorm:"-"`
-	Images     []Image         `json:"images,omitempty" gorm:"-"`
-	Techniques []string        `json:"techniques,omitempty" gorm:"-"`
-	Paints     []Paint         `json:"paints,omitempty" gorm:"-"`
+	Files      []MiniatureFile  `json:"-" gorm:"-"`
+	Images     []Image          `json:"images,omitempty" gorm:"-"`
+	Techniques []string         `json:"techniques,omitempty" gorm:"-"`
+	Paints     []MiniaturePaint `json:"paints,omitempty" gorm:"-"`
 }
 
 func (MiniatureProject) TableName() string {
@@ -70,9 +70,17 @@ type Image struct {
 	Caption string `json:"caption"`
 }
 
-// Paint represents a paint used in a miniature project
-type Paint struct {
-	Name         string `json:"name"`
-	Manufacturer string `json:"manufacturer"`
-	Color        string `json:"color"`
+// MiniaturePaint represents a paint in the master paint list (cl_paints table)
+type MiniaturePaint struct {
+	ID           int64     `json:"id" gorm:"primaryKey"`
+	Name         string    `json:"name" binding:"required"`
+	Manufacturer string    `json:"manufacturer" binding:"required"`
+	ColorHex     *string   `json:"colorHex,omitempty" gorm:"column:color_hex"`
+	PaintType    *string   `json:"paintType,omitempty" gorm:"column:paint_type"`
+	CreatedAt    time.Time `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt    time.Time `json:"updatedAt" gorm:"column:updated_at"`
+}
+
+func (MiniaturePaint) TableName() string {
+	return "miniatures.cl_paints"
 }
