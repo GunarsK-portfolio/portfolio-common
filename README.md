@@ -8,7 +8,9 @@ Shared Go package for common code across portfolio microservices.
 
 ## Overview
 
-This module provides shared functionality used by multiple services in the portfolio application:
+This module provides shared functionality used by multiple services in
+the portfolio application:
+
 - Database models and repositories
 - Common utilities
 - Shared types
@@ -18,6 +20,7 @@ This module provides shared functionality used by multiple services in the portf
 ### `config`
 
 Environment variable helpers:
+
 - `GetEnv()` - Get env var with default value
 - `GetEnvRequired()` - Get required env var or panic
 - `GetEnvBool()` - Get boolean env var
@@ -27,17 +30,21 @@ Environment variable helpers:
 ### `database`
 
 Database connection utilities:
+
 - `Connect()` - PostgreSQL connection with connection pooling
 
 ### `middleware`
 
 Gin middleware:
+
 - `AuthMiddleware` - JWT token validation via auth-service
 
 ### `repository`
 
 Shared database repository implementations:
-- `ActionLogRepository` - Audit logging for user actions (logins, downloads, uploads, etc.)
+
+- `ActionLogRepository` - Audit logging for user actions (logins,
+  downloads, uploads, etc.)
 
 ## Usage
 
@@ -103,22 +110,33 @@ count, err := actionLogRepo.CountActionsByResource("file", fileID)
 ### Available Commands
 
 Using Task:
+
 ```bash
-task build          # Build all packages (verify compilation)
-task fmt            # Format code
-task test           # Run tests
-task test-coverage  # Run tests with coverage report
-task lint           # Run golangci-lint
-task vet            # Run go vet
-task tidy           # Tidy and verify go.mod
-task security       # Run gosec security scanner
-task vuln           # Check for vulnerabilities
-task ci             # Run all CI checks locally
-task clean          # Clean build artifacts
-task install-tools  # Install dev tools (golangci-lint, govulncheck, etc.)
+# Build and test
+task build               # Build all packages (verify compilation)
+task test                # Run tests
+task test:coverage       # Run tests with coverage report
+task clean               # Clean build artifacts
+
+# Code quality
+task format              # Format code with gofmt
+task tidy                # Tidy and verify go.mod
+task lint                # Run golangci-lint
+task vet                 # Run go vet
+
+# Security
+task security:scan       # Run gosec security scanner
+task security:vuln       # Check for vulnerabilities with govulncheck
+
+# Development tools
+task dev:install-tools   # Install dev tools (golangci-lint, govulncheck, etc.)
+
+# CI/CD
+task ci:all              # Run all CI checks
 ```
 
 Using Go directly:
+
 ```bash
 go build ./...       # Build all packages
 go test ./...        # Run tests
