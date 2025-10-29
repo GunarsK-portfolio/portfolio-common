@@ -15,6 +15,11 @@ the portfolio application:
 - Common utilities
 - Shared types
 
+## Prerequisites
+
+- Go 1.25+
+- Node.js 22+ and npm 11+
+
 ## Packages
 
 ### `config`
