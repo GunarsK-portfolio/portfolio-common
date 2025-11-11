@@ -62,7 +62,9 @@ func GetEnvInt64(key string, defaultValue int64) int64 {
 	return intVal
 }
 
-// GetEnvDuration returns environment variable as time.Duration or default if not set
+// GetEnvDuration returns environment variable as time.Duration or default if not set.
+// Expected format: Go duration strings (e.g., "15m", "1h30m", "24h", "168h").
+// See https://pkg.go.dev/time#ParseDuration for full format specification.
 func GetEnvDuration(key string, defaultValue time.Duration) time.Duration {
 	val := GetEnv(key, "")
 	if val == "" {

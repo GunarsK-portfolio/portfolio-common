@@ -1,5 +1,11 @@
 package config
 
+import (
+	"fmt"
+
+	"github.com/go-playground/validator/v10"
+)
+
 // RedisConfig holds Redis connection configuration
 type RedisConfig struct {
 	Host     string `validate:"required"`
@@ -9,9 +15,16 @@ type RedisConfig struct {
 
 // NewRedisConfig loads Redis configuration from environment variables
 func NewRedisConfig() RedisConfig {
-	return RedisConfig{
+	cfg := RedisConfig{
 		Host:     GetEnvRequired("REDIS_HOST"),
 		Port:     GetEnvRequired("REDIS_PORT"),
 		Password: GetEnv("REDIS_PASSWORD", ""),
 	}
+
+	validate := validator.New()
+	if err := validate.Struct(cfg); err != nil {
+		panic(fmt.Sprintf("Invalid Redis configuration: %v", err))
+	}
+
+	return cfg
 }
