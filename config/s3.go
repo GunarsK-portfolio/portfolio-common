@@ -8,8 +8,8 @@ type S3Config struct {
 	UseSSL    bool
 }
 
-// LoadS3Config loads S3 configuration from environment variables
-func LoadS3Config() S3Config {
+// NewS3Config loads S3 configuration from environment variables
+func NewS3Config() S3Config {
 	return S3Config{
 		Endpoint:  GetEnvRequired("S3_ENDPOINT"),
 		AccessKey: GetEnvRequired("S3_ACCESS_KEY"),

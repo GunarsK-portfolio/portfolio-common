@@ -9,8 +9,8 @@ type DatabaseConfig struct {
 	Name     string `validate:"required"`
 }
 
-// LoadDatabaseConfig loads database configuration from environment variables
-func LoadDatabaseConfig() DatabaseConfig {
+// NewDatabaseConfig loads database configuration from environment variables
+func NewDatabaseConfig() DatabaseConfig {
 	return DatabaseConfig{
 		Host:     GetEnvRequired("DB_HOST"),
 		Port:     GetEnvRequired("DB_PORT"),

@@ -7,8 +7,8 @@ type RedisConfig struct {
 	Password string // Optional, no validation
 }
 
-// LoadRedisConfig loads Redis configuration from environment variables
-func LoadRedisConfig() RedisConfig {
+// NewRedisConfig loads Redis configuration from environment variables
+func NewRedisConfig() RedisConfig {
 	return RedisConfig{
 		Host:     GetEnvRequired("REDIS_HOST"),
 		Port:     GetEnvRequired("REDIS_PORT"),

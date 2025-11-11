@@ -9,8 +9,8 @@ type JWTConfig struct {
 	RefreshExpiry time.Duration `validate:"gt=0"`
 }
 
-// LoadJWTConfig loads JWT configuration from environment variables
-func LoadJWTConfig() JWTConfig {
+// NewJWTConfig loads JWT configuration from environment variables
+func NewJWTConfig() JWTConfig {
 	return JWTConfig{
 		Secret:        GetEnvRequired("JWT_SECRET"),
 		AccessExpiry:  GetEnvDuration("JWT_ACCESS_EXPIRY", 15*time.Minute),

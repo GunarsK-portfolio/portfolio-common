@@ -6,8 +6,8 @@ type ServiceConfig struct {
 	Environment string `validate:"oneof=development staging production"`
 }
 
-// LoadServiceConfig loads service configuration from environment variables
-func LoadServiceConfig(defaultPort string) ServiceConfig {
+// NewServiceConfig loads service configuration from environment variables
+func NewServiceConfig(defaultPort string) ServiceConfig {
 	return ServiceConfig{
 		Port:        GetEnv("PORT", defaultPort),
 		Environment: GetEnv("ENVIRONMENT", "development"),
