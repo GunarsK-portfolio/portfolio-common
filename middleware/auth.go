@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,11 +15,34 @@ import (
 // AuthMiddleware provides JWT token validation via auth-service
 type AuthMiddleware struct {
 	authServiceURL string
+	timeout        time.Duration
 }
 
-// NewAuthMiddleware creates a new auth middleware instance
-func NewAuthMiddleware(authServiceURL string) *AuthMiddleware {
-	return &AuthMiddleware{authServiceURL: authServiceURL}
+// AuthMiddlewareOption is a functional option for configuring AuthMiddleware
+type AuthMiddlewareOption func(*AuthMiddleware)
+
+// WithTimeout sets a custom timeout for auth service requests
+func WithTimeout(timeout time.Duration) AuthMiddlewareOption {
+	return func(m *AuthMiddleware) {
+		m.timeout = timeout
+	}
+}
+
+// NewAuthMiddleware creates a new auth middleware instance with optional configuration
+// Default timeout is 5 seconds if not specified
+// Usage: NewAuthMiddleware(url) or NewAuthMiddleware(url, WithTimeout(10*time.Second))
+func NewAuthMiddleware(authServiceURL string, opts ...AuthMiddlewareOption) *AuthMiddleware {
+	m := &AuthMiddleware{
+		authServiceURL: authServiceURL,
+		timeout:        5 * time.Second, // Default timeout
+	}
+
+	// Apply optional configurations
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	return m
 }
 
 // ValidateToken returns a Gin middleware that validates JWT tokens via auth-service
@@ -57,7 +81,9 @@ func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: m.timeout,
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return 0, err
