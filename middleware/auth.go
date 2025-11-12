@@ -16,15 +16,20 @@ import (
 type AuthMiddleware struct {
 	authServiceURL string
 	timeout        time.Duration
+	client         *http.Client
 }
 
 // AuthMiddlewareOption is a functional option for configuring AuthMiddleware
 type AuthMiddlewareOption func(*AuthMiddleware)
 
-// WithTimeout sets a custom timeout for auth service requests
+// WithTimeout sets a custom timeout for auth service requests.
+// The timeout must be positive. Zero or negative values will be ignored
+// and the default timeout (5s) will be used instead.
 func WithTimeout(timeout time.Duration) AuthMiddlewareOption {
 	return func(m *AuthMiddleware) {
-		m.timeout = timeout
+		if timeout > 0 {
+			m.timeout = timeout
+		}
 	}
 }
 
@@ -40,6 +45,11 @@ func NewAuthMiddleware(authServiceURL string, opts ...AuthMiddlewareOption) *Aut
 	// Apply optional configurations
 	for _, opt := range opts {
 		opt(m)
+	}
+
+	// Initialize HTTP client with configured timeout for connection pooling
+	m.client = &http.Client{
+		Timeout: m.timeout,
 	}
 
 	return m
@@ -81,10 +91,7 @@ func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{
-		Timeout: m.timeout,
-	}
-	resp, err := client.Do(req)
+	resp, err := m.client.Do(req)
 	if err != nil {
 		return 0, err
 	}
