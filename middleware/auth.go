@@ -74,7 +74,11 @@ func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
 		Valid      bool  `json:"valid"`
 		TTLSeconds int64 `json:"ttl_seconds"`
 	}
-	body, _ := io.ReadAll(resp.Body)
+	// Limit response size to 1KB to prevent DoS attacks
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	if err != nil {
+		return 0, err
+	}
 	if err := json.Unmarshal(body, &result); err != nil {
 		return 0, err
 	}
