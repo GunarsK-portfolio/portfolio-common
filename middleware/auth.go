@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,11 +15,44 @@ import (
 // AuthMiddleware provides JWT token validation via auth-service
 type AuthMiddleware struct {
 	authServiceURL string
+	timeout        time.Duration
+	client         *http.Client
 }
 
-// NewAuthMiddleware creates a new auth middleware instance
-func NewAuthMiddleware(authServiceURL string) *AuthMiddleware {
-	return &AuthMiddleware{authServiceURL: authServiceURL}
+// AuthMiddlewareOption is a functional option for configuring AuthMiddleware
+type AuthMiddlewareOption func(*AuthMiddleware)
+
+// WithTimeout sets a custom timeout for auth service requests.
+// The timeout must be positive. Zero or negative values will be ignored
+// and the default timeout (5s) will be used instead.
+func WithTimeout(timeout time.Duration) AuthMiddlewareOption {
+	return func(m *AuthMiddleware) {
+		if timeout > 0 {
+			m.timeout = timeout
+		}
+	}
+}
+
+// NewAuthMiddleware creates a new auth middleware instance with optional configuration
+// Default timeout is 5 seconds if not specified
+// Usage: NewAuthMiddleware(url) or NewAuthMiddleware(url, WithTimeout(10*time.Second))
+func NewAuthMiddleware(authServiceURL string, opts ...AuthMiddlewareOption) *AuthMiddleware {
+	m := &AuthMiddleware{
+		authServiceURL: authServiceURL,
+		timeout:        5 * time.Second, // Default timeout
+	}
+
+	// Apply optional configurations
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	// Initialize HTTP client with configured timeout for connection pooling
+	m.client = &http.Client{
+		Timeout: m.timeout,
+	}
+
+	return m
 }
 
 // ValidateToken returns a Gin middleware that validates JWT tokens via auth-service
@@ -57,8 +91,7 @@ func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := m.client.Do(req)
 	if err != nil {
 		return 0, err
 	}
