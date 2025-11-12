@@ -16,6 +16,15 @@ type SecurityMiddleware struct {
 
 // NewSecurityMiddleware creates a new security middleware with CORS configuration
 func NewSecurityMiddleware(allowedOrigins []string, allowedMethods string, allowedHeaders string, allowCredentials bool) *SecurityMiddleware {
+	if len(allowedOrigins) == 0 {
+		panic("allowedOrigins must contain at least one origin")
+	}
+	for _, origin := range allowedOrigins {
+		if origin == "" {
+			panic("allowedOrigins must not contain empty strings")
+		}
+	}
+
 	return &SecurityMiddleware{
 		allowedOrigins:   allowedOrigins,
 		allowedMethods:   allowedMethods,
@@ -36,6 +45,7 @@ func (m *SecurityMiddleware) Apply() gin.HandlerFunc {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 			c.Writer.Header().Set("Access-Control-Allow-Methods", m.allowedMethods)
 			c.Writer.Header().Set("Access-Control-Allow-Headers", m.allowedHeaders)
+			c.Writer.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
 			if m.allowCredentials {
 				c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 			}
@@ -48,7 +58,11 @@ func (m *SecurityMiddleware) Apply() gin.HandlerFunc {
 
 		// Handle preflight OPTIONS requests
 		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
+			if allowed {
+				c.AbortWithStatus(204)
+			} else {
+				c.AbortWithStatus(403)
+			}
 			return
 		}
 
