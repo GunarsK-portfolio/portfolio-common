@@ -6,11 +6,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SecurityMiddleware provides CORS validation and security headers
+// SecurityMiddleware provides CORS validation and security headers for Gin handlers.
+// Use NewSecurityMiddleware to construct with validation.
 type SecurityMiddleware struct {
-	allowedOrigins   []string
-	allowedMethods   string
-	allowedHeaders   string
+	// allowedOrigins is a list of exact-match allowed origin URLs (e.g., "https://example.com").
+	// The Origin request header must match one of these exactly for CORS headers to be applied.
+	allowedOrigins []string
+	// allowedMethods is a comma-separated list of HTTP methods (e.g., "GET,POST,PUT,DELETE").
+	allowedMethods string
+	// allowedHeaders is a comma-separated list of allowed request headers (e.g., "Content-Type,Authorization").
+	allowedHeaders string
+	// allowCredentials controls whether Access-Control-Allow-Credentials header is sent.
+	// Only enable when origins are specific (not "*") and you need cookie/auth support.
 	allowCredentials bool
 }
 
