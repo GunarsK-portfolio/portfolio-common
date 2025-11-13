@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -67,7 +68,22 @@ func (m *AuthMiddleware) ValidateToken() gin.HandlerFunc {
 
 		// Validate token with auth service and get TTL
 		ttl, err := m.validateWithAuthService(token)
-		if err != nil || ttl <= 0 {
+		if err != nil {
+			slog.Error("token validation failed",
+				"error", err,
+				"auth_service_url", m.authServiceURL,
+				"path", c.Request.URL.Path,
+			)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized - invalid token"})
+			c.Abort()
+			return
+		}
+
+		if ttl <= 0 {
+			slog.Warn("token validation returned non-positive TTL",
+				"ttl", ttl,
+				"path", c.Request.URL.Path,
+			)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized - invalid token"})
 			c.Abort()
 			return
@@ -87,20 +103,20 @@ func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
 
 	req, err := http.NewRequest(http.MethodPost, validateURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to create auth request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := m.client.Do(req)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("auth service request failed: %w", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, nil
+		return 0, fmt.Errorf("auth service returned status %d", resp.StatusCode)
 	}
 
 	var result struct {
@@ -110,14 +126,14 @@ func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
 	// Limit response size to 1KB to prevent DoS attacks
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to read auth response: %w", err)
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to parse auth response: %w", err)
 	}
 
 	if !result.Valid {
-		return 0, nil
+		return 0, fmt.Errorf("token validation failed")
 	}
 
 	return result.TTLSeconds, nil

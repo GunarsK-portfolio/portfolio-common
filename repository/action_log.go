@@ -2,6 +2,7 @@ package repository
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -44,7 +45,10 @@ func NewActionLogRepository(db *gorm.DB) ActionLogRepository {
 
 // LogAction inserts a new action log entry
 func (r *actionLogRepository) LogAction(log *ActionLog) error {
-	return r.db.Create(log).Error
+	if err := r.db.Create(log).Error; err != nil {
+		return fmt.Errorf("failed to create action log: %w", err)
+	}
+	return nil
 }
 
 // GetActionsByType retrieves actions by type
@@ -54,7 +58,10 @@ func (r *actionLogRepository) GetActionsByType(actionType string, limit int) ([]
 		Order("created_at DESC").
 		Limit(limit).
 		Find(&logs).Error
-	return logs, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to get actions by type %s: %w", actionType, err)
+	}
+	return logs, nil
 }
 
 // GetActionsByResource retrieves actions for a specific resource
@@ -63,7 +70,10 @@ func (r *actionLogRepository) GetActionsByResource(resourceType string, resource
 	err := r.db.Where("resource_type = ? AND resource_id = ?", resourceType, resourceID).
 		Order("created_at DESC").
 		Find(&logs).Error
-	return logs, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to get actions by resource %s:%d: %w", resourceType, resourceID, err)
+	}
+	return logs, nil
 }
 
 // GetActionsByUser retrieves actions by a specific user
@@ -73,7 +83,10 @@ func (r *actionLogRepository) GetActionsByUser(userID int64, limit int) ([]Actio
 		Order("created_at DESC").
 		Limit(limit).
 		Find(&logs).Error
-	return logs, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to get actions by user %d: %w", userID, err)
+	}
+	return logs, nil
 }
 
 // CountActionsByResource counts actions for a specific resource
@@ -82,5 +95,8 @@ func (r *actionLogRepository) CountActionsByResource(resourceType string, resour
 	err := r.db.Model(&ActionLog{}).
 		Where("resource_type = ? AND resource_id = ?", resourceType, resourceID).
 		Count(&count).Error
-	return count, err
+	if err != nil {
+		return 0, fmt.Errorf("failed to count actions by resource %s:%d: %w", resourceType, resourceID, err)
+	}
+	return count, nil
 }
