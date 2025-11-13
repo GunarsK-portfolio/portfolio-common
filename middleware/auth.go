@@ -115,18 +115,24 @@ func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
 		_ = resp.Body.Close()
 	}()
 
+	// Limit response size to 1KB to prevent DoS attacks
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	if err != nil {
+		return 0, fmt.Errorf("failed to read auth response: %w", err)
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("auth service returned status %d", resp.StatusCode)
+		// Include limited response body for debugging (max 512 bytes)
+		bodyPreview := string(body)
+		if len(bodyPreview) > 512 {
+			bodyPreview = bodyPreview[:512] + "..."
+		}
+		return 0, fmt.Errorf("auth service returned status %d, body: %s", resp.StatusCode, bodyPreview)
 	}
 
 	var result struct {
 		Valid      bool  `json:"valid"`
 		TTLSeconds int64 `json:"ttl_seconds"`
-	}
-	// Limit response size to 1KB to prevent DoS attacks
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
-	if err != nil {
-		return 0, fmt.Errorf("failed to read auth response: %w", err)
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
 		return 0, fmt.Errorf("failed to parse auth response: %w", err)
