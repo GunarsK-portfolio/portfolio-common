@@ -8,7 +8,8 @@ Shared Go package for common code across portfolio microservices.
 
 ## Overview
 
-This module provides shared functionality used by multiple services in the portfolio application:
+This module provides shared functionality used by multiple services in the
+portfolio application:
 
 - Configuration management with validation
 - Database models and repositories
@@ -41,7 +42,9 @@ type ServiceConfig struct {
 cfg := config.NewServiceConfig("8080") // Default port if PORT not set
 ```
 
-**Security Note**: `ALLOWED_ORIGINS` environment variable is required with no default. This forces explicit CORS configuration to prevent wildcard origin vulnerabilities.
+**Security Note**: `ALLOWED_ORIGINS` environment variable is required with
+no default. This forces explicit CORS configuration to prevent wildcard
+origin vulnerabilities.
 
 #### DatabaseConfig
 
@@ -95,7 +98,8 @@ Gin middleware for authentication and security.
 
 #### AuthMiddleware
 
-JWT token validation via auth-service with automatic token TTL handling and user context:
+JWT token validation via auth-service with automatic token TTL handling
+and user context:
 
 ```go
 import "github.com/GunarsK-portfolio/portfolio-common/middleware"
@@ -150,10 +154,12 @@ router.Use(securityMiddleware.Apply())
 ```
 
 **Features:**
+
 - CORS origin whitelisting (no wildcard "*" support)
 - Preflight request handling (OPTIONS)
 - 403 response for disallowed origins
-- Security headers: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection
+- Security headers: X-Content-Type-Options, X-Frame-Options,
+  X-XSS-Protection
 - Preflight caching (24 hours)
 - Constructor validation (panics on empty/invalid origins)
 
@@ -211,6 +217,7 @@ audit.LogFromContext(c, actionLogRepo, audit.ActionLoginSuccess, nil, nil, map[s
 ```
 
 **Automatic context extraction:**
+
 - Client IP (X-Forwarded-For → X-Real-IP → RemoteAddr)
 - User-Agent header
 - user_id (from auth middleware)
@@ -243,37 +250,43 @@ audit.ResourceTypeUser           // User resource
 
 ```go
 // user_id automatically extracted from context by LogFromContext
-err := audit.LogFromContext(c, actionLogRepo, audit.ActionLoginSuccess, nil, nil, map[string]interface{}{
-    "username": username,
-})
+err := audit.LogFromContext(c, actionLogRepo,
+    audit.ActionLoginSuccess, nil, nil, map[string]interface{}{
+        "username": username,
+    })
 ```
 
 **Login failure (no user_id):**
 
 ```go
-err := audit.LogFromContext(c, actionLogRepo, audit.ActionLoginFailure, nil, nil, map[string]interface{}{
-    "username": attemptedUsername,
-    "reason": "invalid_credentials",
-})
+err := audit.LogFromContext(c, actionLogRepo,
+    audit.ActionLoginFailure, nil, nil, map[string]interface{}{
+        "username": attemptedUsername,
+        "reason": "invalid_credentials",
+    })
 ```
 
 **File download (with resource):**
 
 ```go
 resourceType := audit.ResourceTypeFile
-err := audit.LogFromContext(c, actionLogRepo, audit.ActionFileDownload, &resourceType, &fileID, map[string]interface{}{
-    "filename": fileName,
-    "size": fileSize,
-})
+err := audit.LogFromContext(c, actionLogRepo,
+    audit.ActionFileDownload, &resourceType, &fileID,
+    map[string]interface{}{
+        "filename": fileName,
+        "size": fileSize,
+    })
 ```
 
 **Explicit user_id (when not using auth middleware):**
 
 ```go
 // Use LogAction when user_id is not in context
-err := audit.LogAction(c, actionLogRepo, audit.ActionLoginSuccess, nil, nil, &userID, map[string]interface{}{
-    "method": "api_key",
-})
+err := audit.LogAction(c, actionLogRepo,
+    audit.ActionLoginSuccess, nil, nil, &userID,
+    map[string]interface{}{
+        "method": "api_key",
+    })
 ```
 
 #### Helper Functions
@@ -417,11 +430,13 @@ This module follows semantic versioning. Current version: `v0.12.0`
 
 ### v0.12.0
 
-- **REQUIRED**: `ALLOWED_ORIGINS` environment variable must be set (comma-separated list of origins)
+- **REQUIRED**: `ALLOWED_ORIGINS` environment variable must be set
+  (comma-separated list of origins)
 - No default value provided for security reasons
 - Services will panic on startup if `ALLOWED_ORIGINS` is not configured
 
 Example `.env`:
-```
-ALLOWED_ORIGINS=http://localhost:8080,http://localhost:8081,https://portfolio.example.com
+
+```bash
+ALLOWED_ORIGINS=http://localhost:8080,https://portfolio.example.com
 ```
