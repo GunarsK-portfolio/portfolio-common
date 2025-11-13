@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/GunarsK-portfolio/portfolio-common/logger"
 	"github.com/GunarsK-portfolio/portfolio-common/repository"
 	"github.com/gin-gonic/gin"
 )
@@ -121,11 +122,16 @@ func GetUserID(c *gin.Context) *int64 {
 
 // LogFromContext logs an action using context values (IP, UA, user_id)
 // This is the recommended way to log audit events - requires ContextMiddleware
+// Errors are logged internally and not returned to avoid blocking business operations
 func LogFromContext(c *gin.Context, repo repository.ActionLogRepository, actionType string, resourceType *string, resourceID *int64, source *string, metadata map[string]interface{}) error {
 	var metadataJSON json.RawMessage
 	if metadata != nil {
 		bytes, err := json.Marshal(metadata)
 		if err != nil {
+			logger.GetLogger(c).Error("Failed to marshal audit metadata",
+				"error", err,
+				"action_type", actionType,
+			)
 			return err
 		}
 		metadataJSON = bytes
@@ -142,16 +148,31 @@ func LogFromContext(c *gin.Context, repo repository.ActionLogRepository, actionT
 		Metadata:     metadataJSON,
 	}
 
-	return repo.LogAction(actionLog)
+	if err := repo.LogAction(actionLog); err != nil {
+		logger.GetLogger(c).Error("Failed to log audit action",
+			"error", err,
+			"action_type", actionType,
+			"resource_type", resourceType,
+			"resource_id", resourceID,
+		)
+		return err
+	}
+
+	return nil
 }
 
 // LogAction is a helper that logs an action with explicit user ID and source
 // Use LogFromContext instead when user_id is in context from auth middleware
+// Errors are logged internally and not returned to avoid blocking business operations
 func LogAction(c *gin.Context, repo repository.ActionLogRepository, actionType string, resourceType *string, resourceID *int64, userID *int64, source *string, metadata map[string]interface{}) error {
 	var metadataJSON json.RawMessage
 	if metadata != nil {
 		bytes, err := json.Marshal(metadata)
 		if err != nil {
+			logger.GetLogger(c).Error("Failed to marshal audit metadata",
+				"error", err,
+				"action_type", actionType,
+			)
 			return err
 		}
 		metadataJSON = bytes
@@ -168,5 +189,15 @@ func LogAction(c *gin.Context, repo repository.ActionLogRepository, actionType s
 		Metadata:     metadataJSON,
 	}
 
-	return repo.LogAction(actionLog)
+	if err := repo.LogAction(actionLog); err != nil {
+		logger.GetLogger(c).Error("Failed to log audit action",
+			"error", err,
+			"action_type", actionType,
+			"resource_type", resourceType,
+			"resource_id", resourceID,
+		)
+		return err
+	}
+
+	return nil
 }
