@@ -121,7 +121,7 @@ func GetUserID(c *gin.Context) *int64 {
 
 // LogFromContext logs an action using context values (IP, UA, user_id)
 // This is the recommended way to log audit events - requires ContextMiddleware
-func LogFromContext(c *gin.Context, repo repository.ActionLogRepository, actionType string, resourceType *string, resourceID *int64, metadata map[string]interface{}) error {
+func LogFromContext(c *gin.Context, repo repository.ActionLogRepository, actionType string, resourceType *string, resourceID *int64, source *string, metadata map[string]interface{}) error {
 	var metadataJSON json.RawMessage
 	if metadata != nil {
 		bytes, err := json.Marshal(metadata)
@@ -138,15 +138,16 @@ func LogFromContext(c *gin.Context, repo repository.ActionLogRepository, actionT
 		UserID:       GetUserID(c),
 		IPAddress:    GetClientIP(c),
 		UserAgent:    GetUserAgent(c),
+		Source:       source,
 		Metadata:     metadataJSON,
 	}
 
 	return repo.LogAction(actionLog)
 }
 
-// LogAction is a helper that logs an action with explicit user ID
+// LogAction is a helper that logs an action with explicit user ID and source
 // Use LogFromContext instead when user_id is in context from auth middleware
-func LogAction(c *gin.Context, repo repository.ActionLogRepository, actionType string, resourceType *string, resourceID *int64, userID *int64, metadata map[string]interface{}) error {
+func LogAction(c *gin.Context, repo repository.ActionLogRepository, actionType string, resourceType *string, resourceID *int64, userID *int64, source *string, metadata map[string]interface{}) error {
 	var metadataJSON json.RawMessage
 	if metadata != nil {
 		bytes, err := json.Marshal(metadata)
@@ -163,6 +164,7 @@ func LogAction(c *gin.Context, repo repository.ActionLogRepository, actionType s
 		UserID:       userID,
 		IPAddress:    GetClientIP(c),
 		UserAgent:    GetUserAgent(c),
+		Source:       source,
 		Metadata:     metadataJSON,
 	}
 
