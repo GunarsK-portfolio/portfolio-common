@@ -17,6 +17,7 @@ type ActionLog struct {
 	UserID       *int64          `json:"user_id,omitempty" gorm:"column:user_id"`
 	IPAddress    *string         `json:"ip_address,omitempty" gorm:"column:ip_address"`
 	UserAgent    *string         `json:"user_agent,omitempty" gorm:"column:user_agent"`
+	Source       *string         `json:"source,omitempty" gorm:"column:source"`
 	Metadata     json.RawMessage `json:"metadata,omitempty" gorm:"column:metadata;type:jsonb"`
 	CreatedAt    time.Time       `json:"created_at" gorm:"column:created_at"`
 }
