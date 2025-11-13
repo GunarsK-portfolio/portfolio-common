@@ -66,8 +66,8 @@ func (m *AuthMiddleware) ValidateToken() gin.HandlerFunc {
 			return
 		}
 
-		// Validate token with auth service and get TTL
-		ttl, err := m.validateWithAuthService(token)
+		// Validate token with auth service and get TTL + claims
+		ttl, claims, err := m.validateWithAuthService(token)
 		if err != nil {
 			slog.Error("token validation failed",
 				"error", err,
@@ -89,27 +89,37 @@ func (m *AuthMiddleware) ValidateToken() gin.HandlerFunc {
 			return
 		}
 
-		// Store TTL in context for response middleware
+		// Store TTL and user claims in context for downstream handlers
 		c.Set("token_ttl", ttl)
+		if claims != nil {
+			c.Set("user_id", claims.UserID)
+			c.Set("username", claims.Username)
+		}
 
 		c.Next()
 	}
 }
 
-func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
+// TokenClaims represents JWT claims extracted from validation response
+type TokenClaims struct {
+	UserID   int64  `json:"user_id"`
+	Username string `json:"username"`
+}
+
+func (m *AuthMiddleware) validateWithAuthService(token string) (int64, *TokenClaims, error) {
 	validateURL := fmt.Sprintf("%s/auth/validate", m.authServiceURL)
 
 	reqBody, _ := json.Marshal(map[string]string{"token": token})
 
 	req, err := http.NewRequest(http.MethodPost, validateURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return 0, fmt.Errorf("failed to create auth request: %w", err)
+		return 0, nil, fmt.Errorf("failed to create auth request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := m.client.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("auth service request failed: %w", err)
+		return 0, nil, fmt.Errorf("auth service request failed: %w", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -118,7 +128,7 @@ func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
 	// Limit response size to 1KB to prevent DoS attacks
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
 	if err != nil {
-		return 0, fmt.Errorf("failed to read auth response: %w", err)
+		return 0, nil, fmt.Errorf("failed to read auth response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -127,22 +137,29 @@ func (m *AuthMiddleware) validateWithAuthService(token string) (int64, error) {
 		if len(bodyPreview) > 512 {
 			bodyPreview = bodyPreview[:512] + "..."
 		}
-		return 0, fmt.Errorf("auth service returned status %d, body: %s", resp.StatusCode, bodyPreview)
+		return 0, nil, fmt.Errorf("auth service returned status %d, body: %s", resp.StatusCode, bodyPreview)
 	}
 
 	var result struct {
-		Valid      bool  `json:"valid"`
-		TTLSeconds int64 `json:"ttl_seconds"`
+		Valid      bool   `json:"valid"`
+		TTLSeconds int64  `json:"ttl_seconds"`
+		UserID     int64  `json:"user_id"`
+		Username   string `json:"username"`
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
-		return 0, fmt.Errorf("failed to parse auth response: %w", err)
+		return 0, nil, fmt.Errorf("failed to parse auth response: %w", err)
 	}
 
 	if !result.Valid {
-		return 0, fmt.Errorf("token validation failed")
+		return 0, nil, fmt.Errorf("token validation failed")
 	}
 
-	return result.TTLSeconds, nil
+	claims := &TokenClaims{
+		UserID:   result.UserID,
+		Username: result.Username,
+	}
+
+	return result.TTLSeconds, claims, nil
 }
 
 // AddTTLHeader returns a middleware that adds X-Token-TTL header to responses

@@ -95,7 +95,7 @@ Gin middleware for authentication and security.
 
 #### AuthMiddleware
 
-JWT token validation via auth-service with automatic token TTL handling:
+JWT token validation via auth-service with automatic token TTL handling and user context:
 
 ```go
 import "github.com/GunarsK-portfolio/portfolio-common/middleware"
@@ -111,6 +111,14 @@ protected.Use(authMiddleware.AddTTLHeader()) // Adds X-Token-TTL header
     protected.POST("/files", handler.Upload)
     protected.DELETE("/files/:id", handler.Delete)
 }
+```
+
+**After validation, user claims are stored in Gin context:**
+
+```go
+// In your handlers, access authenticated user information
+userID, _ := c.Get("user_id")     // int64
+username, _ := c.Get("username")  // string
 ```
 
 **Optional timeout configuration:**
@@ -181,30 +189,119 @@ Shared database models:
 - `Miniature` - Miniature painting showcase
 - `StorageFile` - File metadata for MinIO storage
 
+### `audit`
+
+Centralized security event logging with automatic context extraction.
+
+#### Quick Start
+
+```go
+import "github.com/GunarsK-portfolio/portfolio-common/audit"
+
+// 1. Add audit context middleware (extracts IP and user agent)
+router.Use(audit.ContextMiddleware())
+
+// 2. Add auth middleware (stores user_id in context)
+router.Use(authMiddleware.ValidateToken())
+
+// 3. In handlers, log security events with one line
+audit.LogFromContext(c, actionLogRepo, audit.ActionLoginSuccess, nil, nil, map[string]interface{}{
+    "username": username,
+})
+```
+
+**Automatic context extraction:**
+- Client IP (X-Forwarded-For → X-Real-IP → RemoteAddr)
+- User-Agent header
+- user_id (from auth middleware)
+
+#### Action Types
+
+Predefined constants for consistency:
+
+```go
+audit.ActionLoginSuccess         // Successful login
+audit.ActionLoginFailure         // Failed login attempt
+audit.ActionLogout               // User logout
+audit.ActionTokenRefresh         // Token refresh
+audit.ActionTokenValidation      // Token validation failure
+audit.ActionFileUpload           // File uploaded
+audit.ActionFileDownload         // File downloaded
+audit.ActionFileDelete           // File deleted
+```
+
+#### Resource Types
+
+```go
+audit.ResourceTypeFile           // File resource
+audit.ResourceTypeUser           // User resource
+```
+
+#### Usage Examples
+
+**Login success (authenticated):**
+
+```go
+// user_id automatically extracted from context by LogFromContext
+err := audit.LogFromContext(c, actionLogRepo, audit.ActionLoginSuccess, nil, nil, map[string]interface{}{
+    "username": username,
+})
+```
+
+**Login failure (no user_id):**
+
+```go
+err := audit.LogFromContext(c, actionLogRepo, audit.ActionLoginFailure, nil, nil, map[string]interface{}{
+    "username": attemptedUsername,
+    "reason": "invalid_credentials",
+})
+```
+
+**File download (with resource):**
+
+```go
+resourceType := audit.ResourceTypeFile
+err := audit.LogFromContext(c, actionLogRepo, audit.ActionFileDownload, &resourceType, &fileID, map[string]interface{}{
+    "filename": fileName,
+    "size": fileSize,
+})
+```
+
+**Explicit user_id (when not using auth middleware):**
+
+```go
+// Use LogAction when user_id is not in context
+err := audit.LogAction(c, actionLogRepo, audit.ActionLoginSuccess, nil, nil, &userID, map[string]interface{}{
+    "method": "api_key",
+})
+```
+
+#### Helper Functions
+
+```go
+// Get context values (set by ContextMiddleware and auth middleware)
+clientIP := audit.GetClientIP(c)      // *string
+userAgent := audit.GetUserAgent(c)    // *string
+userID := audit.GetUserID(c)          // *int64
+```
+
 ### `repository`
 
 Shared database repository implementations.
 
 #### ActionLogRepository
 
-Audit logging for user actions:
+Low-level audit log repository (use `audit` package helpers instead):
 
 ```go
 import "github.com/GunarsK-portfolio/portfolio-common/repository"
 
 actionLogRepo := repository.NewActionLogRepository(db)
 
-// Log a download
-actionLogRepo.LogAction(&repository.ActionLog{
-    ActionType:   "download",
-    ResourceType: stringPtr("file"),
-    ResourceID:   int64Ptr(fileID),
-    UserID:       nil, // anonymous
-    IPAddress:    stringPtr(clientIP),
-    UserAgent:    stringPtr(userAgent),
-})
-
-// Get download count
+// Query logs
+logs, err := actionLogRepo.GetActionsByType("login_success", 100)
+logs, err := actionLogRepo.GetActionsByUser(userID, 50)
+logs, err := actionLogRepo.GetActionsByResource("file", fileID)
 count, err := actionLogRepo.CountActionsByResource("file", fileID)
 ```
 
