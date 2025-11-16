@@ -12,8 +12,8 @@ type MiniatureTheme struct {
 	CreatedAt    time.Time          `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt    time.Time          `json:"updatedAt" gorm:"column:updated_at"`
 
-	// Computed fields
-	CoverImage string `json:"coverImage,omitempty" gorm:"-"`
+	// Associations
+	CoverImageFile *StorageFile `json:"coverImageFile,omitempty" gorm:"foreignKey:CoverImageID"`
 }
 
 func (MiniatureTheme) TableName() string {
