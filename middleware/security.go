@@ -62,6 +62,7 @@ func (m *SecurityMiddleware) Apply() gin.HandlerFunc {
 		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
 		c.Writer.Header().Set("X-Frame-Options", "DENY")
 		c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
+		c.Writer.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 
 		// Handle preflight OPTIONS requests
 		if c.Request.Method == "OPTIONS" {
