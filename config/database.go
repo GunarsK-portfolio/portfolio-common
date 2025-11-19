@@ -13,6 +13,7 @@ type DatabaseConfig struct {
 	User     string `validate:"required"`
 	Password string `validate:"required"`
 	Name     string `validate:"required"`
+	SSLMode  string `validate:"omitempty,oneof=disable allow prefer require verify-ca verify-full"` // optional, defaults to "disable" for local, set to "require" for AWS RDS
 }
 
 // NewDatabaseConfig loads database configuration from environment variables
@@ -23,6 +24,7 @@ func NewDatabaseConfig() DatabaseConfig {
 		User:     GetEnvRequired("DB_USER"),
 		Password: GetEnvRequired("DB_PASSWORD"),
 		Name:     GetEnvRequired("DB_NAME"),
+		SSLMode:  GetEnv("DB_SSLMODE", "disable"),
 	}
 
 	validate := validator.New()
