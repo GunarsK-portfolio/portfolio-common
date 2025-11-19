@@ -56,11 +56,24 @@ type DatabaseConfig struct {
     Port     string
     User     string
     Password string
-    DBName   string
+    Name     string
+    SSLMode  string // disable (local), require (AWS RDS), verify-ca, verify-full
 }
 
 dbCfg := config.NewDatabaseConfig()
 ```
+
+**Environment Variables:**
+
+- `DB_HOST` - PostgreSQL host (required)
+- `DB_PORT` - PostgreSQL port (required)
+- `DB_USER` - Database user (required)
+- `DB_PASSWORD` - Database password (required)
+- `DB_NAME` - Database name (required)
+- `DB_SSLMODE` - SSL mode (optional, default: `disable`)
+  - Valid values: `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`
+  - Local Docker: Use `disable`
+  - AWS RDS/Aurora: Use `require`
 
 #### Other Configs
 
@@ -89,6 +102,8 @@ db, err := database.Connect(database.PostgresConfig{
     User:     "portfolio_admin",
     Password: "password",
     DBName:   "portfolio",
+    SSLMode:  "disable", // disable (local), require (AWS RDS)
+    TimeZone: "UTC",
 })
 ```
 
@@ -424,9 +439,16 @@ go mod verify        # Verify dependencies
 
 ## Version
 
-This module follows semantic versioning. Current version: `v0.12.0`
+This module follows semantic versioning. Current version: `v0.20.0`
 
 ## Breaking Changes
+
+### v0.19.0
+
+- **ADDED**: `SSLMode` field to `DatabaseConfig` with validation
+- New environment variable: `DB_SSLMODE` (optional, default: `disable`)
+- Valid values: `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`
+- Validation prevents invalid values at startup
 
 ### v0.12.0
 
@@ -439,4 +461,5 @@ Example `.env`:
 
 ```bash
 ALLOWED_ORIGINS=http://localhost:8080,https://portfolio.example.com
+DB_SSLMODE=disable  # Local Docker: disable, AWS RDS: require
 ```
