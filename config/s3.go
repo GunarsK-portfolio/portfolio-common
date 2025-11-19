@@ -1,5 +1,11 @@
 package config
 
+import (
+	"fmt"
+
+	"github.com/go-playground/validator/v10"
+)
+
 // S3Config holds S3/MinIO storage configuration
 // AccessKey and SecretKey are optional - if not provided, IAM role credentials will be used (AWS only)
 type S3Config struct {
@@ -18,9 +24,17 @@ func NewS3Config() S3Config {
 		UseSSL:    GetEnvBool("S3_USE_SSL", false),
 	}
 
-	// Only validate endpoint (access keys are optional for IAM role auth)
-	if cfg.Endpoint == "" {
-		panic("S3_ENDPOINT is required")
+	// Validate endpoint is a valid URL
+	validate := validator.New()
+	if err := validate.Struct(cfg); err != nil {
+		panic(fmt.Sprintf("Invalid S3 configuration: %v", err))
+	}
+
+	// Validate that credentials are provided as a pair (both or neither)
+	hasAccessKey := cfg.AccessKey != ""
+	hasSecretKey := cfg.SecretKey != ""
+	if hasAccessKey != hasSecretKey {
+		panic("S3_ACCESS_KEY and S3_SECRET_KEY must both be provided or both be empty")
 	}
 
 	return cfg
