@@ -9,19 +9,25 @@ import (
 // S3Config holds S3/MinIO storage configuration
 // AccessKey and SecretKey are optional - if not provided, IAM role credentials will be used (AWS only)
 type S3Config struct {
-	Endpoint  string `validate:"required,url"`
-	AccessKey string // Optional: required for MinIO, empty for AWS IAM role auth
-	SecretKey string // Optional: required for MinIO, empty for AWS IAM role auth
-	UseSSL    bool
+	Endpoint         string `validate:"required,url"`
+	AccessKey        string // Optional: required for MinIO, empty for AWS IAM role auth
+	SecretKey        string // Optional: required for MinIO, empty for AWS IAM role auth
+	UseSSL           bool
+	ImagesBucket     string // Bucket for portfolio images
+	DocumentsBucket  string // Bucket for documents (PDF, Word)
+	MiniaturesBucket string // Bucket for miniature/thumbnail images
 }
 
 // NewS3Config loads S3 configuration from environment variables
 func NewS3Config() S3Config {
 	cfg := S3Config{
-		Endpoint:  GetEnvRequired("S3_ENDPOINT"),
-		AccessKey: GetEnv("S3_ACCESS_KEY", ""), // Optional for IAM role authentication
-		SecretKey: GetEnv("S3_SECRET_KEY", ""), // Optional for IAM role authentication
-		UseSSL:    GetEnvBool("S3_USE_SSL", false),
+		Endpoint:         GetEnvRequired("S3_ENDPOINT"),
+		AccessKey:        GetEnv("S3_ACCESS_KEY", ""), // Optional for IAM role authentication
+		SecretKey:        GetEnv("S3_SECRET_KEY", ""), // Optional for IAM role authentication
+		UseSSL:           GetEnvBool("S3_USE_SSL", false),
+		ImagesBucket:     GetEnv("S3_IMAGES_BUCKET", "images"),         // Default for local MinIO
+		DocumentsBucket:  GetEnv("S3_DOCUMENTS_BUCKET", "documents"),   // Default for local MinIO
+		MiniaturesBucket: GetEnv("S3_MINIATURES_BUCKET", "miniatures"), // Default for local MinIO
 	}
 
 	// Validate endpoint is a valid URL
