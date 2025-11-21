@@ -107,20 +107,56 @@ db, err := database.Connect(database.PostgresConfig{
 })
 ```
 
+### `jwt`
+
+Local JWT token validation and generation.
+
+```go
+import "github.com/GunarsK-portfolio/portfolio-common/jwt"
+
+// For services that only validate tokens (admin-api, files-api)
+jwtService, err := jwt.NewValidatorOnly(cfg.JWTSecret)
+
+// For services that generate and validate tokens (auth-service)
+jwtService, err := jwt.NewService(cfg.JWTSecret, 15*time.Minute, 168*time.Hour)
+
+// Validate a token
+claims, err := jwtService.ValidateToken(tokenString)
+if err != nil {
+    // Token invalid or expired
+}
+
+// Access claims
+userID := claims.UserID
+username := claims.Username
+ttl := claims.GetTTL() // Remaining seconds until expiry
+```
+
+**Benefits of local validation:**
+
+- No network calls (faster, more resilient)
+- No single point of failure
+- Industry standard approach (used by Netflix, Google, Stripe)
+
 ### `middleware`
 
 Gin middleware for authentication and security.
 
 #### AuthMiddleware
 
-JWT token validation via auth-service with automatic token TTL handling
-and user context:
+Local JWT token validation with automatic TTL handling and user context:
 
 ```go
-import "github.com/GunarsK-portfolio/portfolio-common/middleware"
+import (
+    "github.com/GunarsK-portfolio/portfolio-common/jwt"
+    "github.com/GunarsK-portfolio/portfolio-common/middleware"
+)
 
-// Create auth middleware
-authMiddleware := middleware.NewAuthMiddleware("http://auth-service:8084/api/v1")
+// Create JWT service for validation
+jwtService, _ := jwt.NewValidatorOnly(cfg.JWTSecret)
+
+// Create auth middleware with JWT service
+authMiddleware := middleware.NewAuthMiddleware(jwtService)
 
 // Apply to protected routes
 protected := router.Group("/api/v1")
@@ -138,15 +174,7 @@ protected.Use(authMiddleware.AddTTLHeader()) // Adds X-Token-TTL header
 // In your handlers, access authenticated user information
 userID, _ := c.Get("user_id")     // int64
 username, _ := c.Get("username")  // string
-```
-
-**Optional timeout configuration:**
-
-```go
-authMiddleware := middleware.NewAuthMiddleware(
-    "http://auth-service:8084/api/v1",
-    middleware.WithTimeout(10 * time.Second),
-)
+ttl, _ := c.Get("token_ttl")      // int64 (seconds until expiry)
 ```
 
 #### SecurityMiddleware
@@ -439,9 +467,31 @@ go mod verify        # Verify dependencies
 
 ## Version
 
-This module follows semantic versioning. Current version: `v0.20.0`
+This module follows semantic versioning. Current version: `v0.21.0`
 
 ## Breaking Changes
+
+### v0.21.0
+
+- **BREAKING**: `AuthMiddleware` now uses local JWT validation instead of HTTP
+  calls
+- `NewAuthMiddleware(authServiceURL string, opts...)` changed to
+  `NewAuthMiddleware(jwtService jwt.Service)`
+- **ADDED**: New `jwt` package for local token validation
+- **REMOVED**: `WithTimeout` option (no longer needed - no HTTP calls)
+- Services must now provide `JWT_SECRET` environment variable
+- Eliminates network dependency on auth-service for token validation
+
+Migration:
+
+```go
+// Before (v0.20.0)
+authMiddleware := middleware.NewAuthMiddleware("http://auth-service:8084/api/v1")
+
+// After (v0.21.0)
+jwtService, _ := jwt.NewValidatorOnly(os.Getenv("JWT_SECRET"))
+authMiddleware := middleware.NewAuthMiddleware(jwtService)
+```
 
 ### v0.19.0
 
