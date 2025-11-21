@@ -1,68 +1,62 @@
 package jwt
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const testSecret = "this-is-a-test-secret-with-32-bytes!" // 36 bytes
+const (
+	testSecret        = "test-secret-key-at-least-32-chars-long"
+	testAccessExpiry  = 15 * time.Minute
+	testRefreshExpiry = 168 * time.Hour
+)
+
+// =============================================================================
+// Constructor Tests
+// =============================================================================
 
 func TestNewService(t *testing.T) {
-	tests := []struct {
-		name          string
-		secret        string
-		accessExpiry  time.Duration
-		refreshExpiry time.Duration
-		wantErr       error
-	}{
-		{
-			name:          "valid configuration",
-			secret:        testSecret,
-			accessExpiry:  15 * time.Minute,
-			refreshExpiry: 168 * time.Hour,
-			wantErr:       nil,
-		},
-		{
-			name:          "secret too short",
-			secret:        "short",
-			accessExpiry:  15 * time.Minute,
-			refreshExpiry: 168 * time.Hour,
-			wantErr:       ErrSecretTooShort,
-		},
-		{
-			name:          "empty secret",
-			secret:        "",
-			accessExpiry:  15 * time.Minute,
-			refreshExpiry: 168 * time.Hour,
-			wantErr:       ErrSecretTooShort,
-		},
-		{
-			name:          "exactly 32 bytes",
-			secret:        "12345678901234567890123456789012",
-			accessExpiry:  15 * time.Minute,
-			refreshExpiry: 168 * time.Hour,
-			wantErr:       nil,
-		},
+	svc, err := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	if svc == nil {
+		t.Fatal("NewService returned nil")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc, err := NewService(tt.secret, tt.accessExpiry, tt.refreshExpiry)
-			if tt.wantErr != nil {
-				if err != tt.wantErr {
-					t.Errorf("expected error %v, got %v", tt.wantErr, err)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("unexpected error: %v", err)
-				}
-				if svc == nil {
-					t.Error("expected service, got nil")
-				}
-			}
-		})
+	if got := svc.GetAccessExpiry(); got != testAccessExpiry {
+		t.Errorf("GetAccessExpiry() = %v, want %v", got, testAccessExpiry)
+	}
+
+	if got := svc.GetRefreshExpiry(); got != testRefreshExpiry {
+		t.Errorf("GetRefreshExpiry() = %v, want %v", got, testRefreshExpiry)
+	}
+}
+
+func TestNewService_EmptySecret(t *testing.T) {
+	_, err := NewService("", testAccessExpiry, testRefreshExpiry)
+	if err != ErrSecretTooShort {
+		t.Errorf("NewService() error = %v, want %v", err, ErrSecretTooShort)
+	}
+}
+
+func TestNewService_ShortSecret(t *testing.T) {
+	_, err := NewService("short", testAccessExpiry, testRefreshExpiry)
+	if err != ErrSecretTooShort {
+		t.Errorf("NewService() error = %v, want %v", err, ErrSecretTooShort)
+	}
+}
+
+func TestNewService_Exactly32Bytes(t *testing.T) {
+	svc, err := NewService("12345678901234567890123456789012", testAccessExpiry, testRefreshExpiry)
+	if err != nil {
+		t.Errorf("NewService() unexpected error = %v", err)
+	}
+	if svc == nil {
+		t.Error("NewService() returned nil for 32-byte secret")
 	}
 }
 
@@ -82,171 +76,531 @@ func TestNewValidatorOnly(t *testing.T) {
 			secret:  "short",
 			wantErr: ErrSecretTooShort,
 		},
+		{
+			name:    "empty secret",
+			secret:  "",
+			wantErr: ErrSecretTooShort,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc, err := NewValidatorOnly(tt.secret)
-			if tt.wantErr != nil {
-				if err != tt.wantErr {
-					t.Errorf("expected error %v, got %v", tt.wantErr, err)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("unexpected error: %v", err)
-				}
-				if svc == nil {
-					t.Error("expected service, got nil")
-				}
+			if err != tt.wantErr {
+				t.Errorf("NewValidatorOnly() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr == nil && svc == nil {
+				t.Error("NewValidatorOnly() returned nil")
 			}
 		})
-	}
-}
-
-func TestGenerateAccessToken(t *testing.T) {
-	svc, err := NewService(testSecret, 15*time.Minute, 168*time.Hour)
-	if err != nil {
-		t.Fatalf("failed to create service: %v", err)
-	}
-
-	token, err := svc.GenerateAccessToken(123, "testuser")
-	if err != nil {
-		t.Fatalf("failed to generate token: %v", err)
-	}
-
-	if token == "" {
-		t.Error("expected non-empty token")
-	}
-
-	// Validate the generated token
-	claims, err := svc.ValidateToken(token)
-	if err != nil {
-		t.Errorf("failed to validate generated token: %v", err)
-	}
-
-	if claims.UserID != 123 {
-		t.Errorf("expected UserID 123, got %d", claims.UserID)
-	}
-	if claims.Username != "testuser" {
-		t.Errorf("expected Username testuser, got %s", claims.Username)
-	}
-}
-
-func TestGenerateRefreshToken(t *testing.T) {
-	svc, err := NewService(testSecret, 15*time.Minute, 168*time.Hour)
-	if err != nil {
-		t.Fatalf("failed to create service: %v", err)
-	}
-
-	token, err := svc.GenerateRefreshToken(456, "anotheruser")
-	if err != nil {
-		t.Fatalf("failed to generate token: %v", err)
-	}
-
-	if token == "" {
-		t.Error("expected non-empty token")
-	}
-
-	// Validate the generated token
-	claims, err := svc.ValidateToken(token)
-	if err != nil {
-		t.Errorf("failed to validate generated token: %v", err)
-	}
-
-	if claims.UserID != 456 {
-		t.Errorf("expected UserID 456, got %d", claims.UserID)
 	}
 }
 
 func TestValidatorOnlyCannotGenerateTokens(t *testing.T) {
 	svc, err := NewValidatorOnly(testSecret)
 	if err != nil {
-		t.Fatalf("failed to create validator: %v", err)
+		t.Fatalf("NewValidatorOnly() error = %v", err)
 	}
 
 	_, err = svc.GenerateAccessToken(123, "user")
-	if err == nil {
-		t.Error("expected error when generating access token with validator-only service")
+	if err != ErrTokenGenDisabled {
+		t.Errorf("GenerateAccessToken() error = %v, want %v", err, ErrTokenGenDisabled)
 	}
 
 	_, err = svc.GenerateRefreshToken(123, "user")
-	if err == nil {
-		t.Error("expected error when generating refresh token with validator-only service")
+	if err != ErrTokenGenDisabled {
+		t.Errorf("GenerateRefreshToken() error = %v, want %v", err, ErrTokenGenDisabled)
 	}
 }
 
-func TestValidateToken_Valid(t *testing.T) {
-	svc, err := NewService(testSecret, 15*time.Minute, 168*time.Hour)
-	if err != nil {
-		t.Fatalf("failed to create service: %v", err)
+func TestValidatorOnlyExpiryIsZero(t *testing.T) {
+	svc, _ := NewValidatorOnly(testSecret)
+
+	if svc.GetAccessExpiry() != 0 {
+		t.Errorf("GetAccessExpiry() = %v, want 0", svc.GetAccessExpiry())
+	}
+	if svc.GetRefreshExpiry() != 0 {
+		t.Errorf("GetRefreshExpiry() = %v, want 0", svc.GetRefreshExpiry())
+	}
+}
+
+func TestServiceInterfaceCompliance(t *testing.T) {
+	var _ Service = (*service)(nil)
+}
+
+// =============================================================================
+// GenerateAccessToken Tests
+// =============================================================================
+
+func TestGenerateAccessToken(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	tests := []struct {
+		name     string
+		userID   int64
+		username string
+		wantErr  error
+	}{
+		{
+			name:     "valid user",
+			userID:   1,
+			username: "testuser",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid user with long username",
+			userID:   999,
+			username: "very_long_username_with_special_chars_123",
+			wantErr:  nil,
+		},
+		{
+			name:     "zero user ID",
+			userID:   0,
+			username: "testuser",
+			wantErr:  ErrInvalidUserID,
+		},
+		{
+			name:     "negative user ID",
+			userID:   -1,
+			username: "testuser",
+			wantErr:  ErrInvalidUserID,
+		},
+		{
+			name:     "empty username",
+			userID:   1,
+			username: "",
+			wantErr:  ErrEmptyUsername,
+		},
 	}
 
-	token, _ := svc.GenerateAccessToken(789, "validuser")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token, err := svc.GenerateAccessToken(tt.userID, tt.username)
+
+			if err != tt.wantErr {
+				t.Errorf("GenerateAccessToken() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr == nil {
+				if token == "" {
+					t.Error("Generated token is empty")
+				}
+
+				// Verify token can be validated
+				claims, err := svc.ValidateToken(token)
+				if err != nil {
+					t.Fatalf("ValidateToken() error = %v", err)
+				}
+				if claims.UserID != tt.userID {
+					t.Errorf("Claims.UserID = %v, want %v", claims.UserID, tt.userID)
+				}
+				if claims.Username != tt.username {
+					t.Errorf("Claims.Username = %v, want %v", claims.Username, tt.username)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateAccessToken_VeryLargeUserID(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	largeID := int64(9223372036854775807) // Max int64
+
+	token, err := svc.GenerateAccessToken(largeID, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
 	claims, err := svc.ValidateToken(token)
-
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("ValidateToken() error = %v", err)
 	}
-	if claims.UserID != 789 {
-		t.Errorf("expected UserID 789, got %d", claims.UserID)
-	}
-	if claims.Username != "validuser" {
-		t.Errorf("expected Username validuser, got %s", claims.Username)
+
+	if claims.UserID != largeID {
+		t.Errorf("Claims.UserID = %v, want %v", claims.UserID, largeID)
 	}
 }
 
-func TestValidateToken_Expired(t *testing.T) {
-	svc, err := NewService(testSecret, 1*time.Millisecond, 168*time.Hour)
-	if err != nil {
-		t.Fatalf("failed to create service: %v", err)
+func TestGenerateAccessToken_SpecialCharactersInUsername(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	tests := []struct {
+		name     string
+		username string
+	}{
+		{
+			name:     "unicode characters",
+			username: "用户名_123",
+		},
+		{
+			name:     "special symbols",
+			username: "user@example.com",
+		},
+		{
+			name:     "spaces and punctuation",
+			username: "John Doe Jr.",
+		},
+		{
+			name:     "quotes",
+			username: `user"with'quotes`,
+		},
+		{
+			name:     "newlines and tabs",
+			username: "user\nwith\ttabs",
+		},
 	}
 
-	token, _ := svc.GenerateAccessToken(123, "user")
-	time.Sleep(10 * time.Millisecond) // Wait for token to expire
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token, err := svc.GenerateAccessToken(1, tt.username)
+			if err != nil {
+				t.Fatalf("GenerateAccessToken() error = %v", err)
+			}
+
+			claims, err := svc.ValidateToken(token)
+			if err != nil {
+				t.Fatalf("ValidateToken() error = %v", err)
+			}
+
+			if claims.Username != tt.username {
+				t.Errorf("Claims.Username = %v, want %v", claims.Username, tt.username)
+			}
+		})
+	}
+}
+
+func TestGenerateAccessToken_TokensAreDifferent(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	// Generate multiple tokens for same user
+	token1, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	// Sleep to ensure different IssuedAt timestamp (JWT timestamps are in seconds)
+	time.Sleep(1001 * time.Millisecond)
+
+	token2, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	// Tokens should be different due to different IssuedAt times
+	if token1 == token2 {
+		t.Error("Sequential tokens for same user should be different")
+	}
+
+	// But both should be valid
+	claims1, err := svc.ValidateToken(token1)
+	if err != nil {
+		t.Fatalf("ValidateToken(token1) error = %v", err)
+	}
+	if claims1.UserID != 1 {
+		t.Errorf("Claims1.UserID = %v, want 1", claims1.UserID)
+	}
+
+	claims2, err := svc.ValidateToken(token2)
+	if err != nil {
+		t.Fatalf("ValidateToken(token2) error = %v", err)
+	}
+	if claims2.UserID != 1 {
+		t.Errorf("Claims2.UserID = %v, want 1", claims2.UserID)
+	}
+}
+
+func TestGenerateAccessToken_ClaimsStructure(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	userID := int64(42)
+	username := "testuser"
+	beforeGeneration := time.Now()
+
+	token, err := svc.GenerateAccessToken(userID, username)
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	afterGeneration := time.Now()
+
+	claims, err := svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+
+	// Verify custom claims
+	if claims.UserID != userID {
+		t.Errorf("Claims.UserID = %v, want %v", claims.UserID, userID)
+	}
+	if claims.Username != username {
+		t.Errorf("Claims.Username = %v, want %v", claims.Username, username)
+	}
+
+	// Verify registered claims
+	if claims.ExpiresAt == nil {
+		t.Error("Claims.ExpiresAt is nil")
+	}
+	if claims.IssuedAt == nil {
+		t.Error("Claims.IssuedAt is nil")
+	}
+
+	// IssuedAt should be between before and after generation
+	issuedAt := claims.IssuedAt.Time
+	if issuedAt.Before(beforeGeneration.Add(-time.Second)) || issuedAt.After(afterGeneration.Add(time.Second)) {
+		t.Errorf("IssuedAt %v not within expected range [%v, %v]", issuedAt, beforeGeneration, afterGeneration)
+	}
+
+	// ExpiresAt should be IssuedAt + expiry
+	expectedExpiry := issuedAt.Add(testAccessExpiry)
+	expiresAt := claims.ExpiresAt.Time
+	diff := expiresAt.Sub(expectedExpiry)
+	if diff < -time.Second || diff > time.Second {
+		t.Errorf("ExpiresAt difference = %v, want within 1 second", diff)
+	}
+}
+
+func TestGenerateAccessToken_SigningMethod(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	// Generate valid token
+	validToken, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	// Parse and verify it uses HMAC
+	token, err := jwt.ParseWithClaims(validToken, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		// Verify signing method is HMAC
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			t.Errorf("Token uses %v, want *jwt.SigningMethodHMAC", token.Method)
+		}
+		return []byte(testSecret), nil
+	})
+
+	if err != nil {
+		t.Fatalf("ParseWithClaims() error = %v", err)
+	}
+	if !token.Valid {
+		t.Error("Token should be valid")
+	}
+}
+
+// =============================================================================
+// GenerateRefreshToken Tests
+// =============================================================================
+
+func TestGenerateRefreshToken(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	userID := int64(123)
+	username := "testuser"
+
+	token, err := svc.GenerateRefreshToken(userID, username)
+	if err != nil {
+		t.Fatalf("GenerateRefreshToken() error = %v", err)
+	}
+	if token == "" {
+		t.Fatal("Generated refresh token is empty")
+	}
+
+	// Verify token contains correct claims
+	claims, err := svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+	if claims.UserID != userID {
+		t.Errorf("Claims.UserID = %v, want %v", claims.UserID, userID)
+	}
+	if claims.Username != username {
+		t.Errorf("Claims.Username = %v, want %v", claims.Username, username)
+	}
+}
+
+func TestGenerateRefreshToken_InputValidation(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	tests := []struct {
+		name     string
+		userID   int64
+		username string
+		wantErr  error
+	}{
+		{
+			name:     "valid inputs",
+			userID:   123,
+			username: "testuser",
+			wantErr:  nil,
+		},
+		{
+			name:     "zero user ID",
+			userID:   0,
+			username: "testuser",
+			wantErr:  ErrInvalidUserID,
+		},
+		{
+			name:     "negative user ID",
+			userID:   -1,
+			username: "testuser",
+			wantErr:  ErrInvalidUserID,
+		},
+		{
+			name:     "empty username",
+			userID:   123,
+			username: "",
+			wantErr:  ErrEmptyUsername,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := svc.GenerateRefreshToken(tt.userID, tt.username)
+			if err != tt.wantErr {
+				t.Errorf("GenerateRefreshToken() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// ValidateToken Tests
+// =============================================================================
+
+func TestValidateToken_ValidToken(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	userID := int64(1)
+	username := "testuser"
+
+	token, err := svc.GenerateAccessToken(userID, username)
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	claims, err := svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+	if claims == nil {
+		t.Fatal("ValidateToken() returned nil claims")
+	}
+
+	if claims.UserID != userID {
+		t.Errorf("Claims.UserID = %v, want %v", claims.UserID, userID)
+	}
+	if claims.Username != username {
+		t.Errorf("Claims.Username = %v, want %v", claims.Username, username)
+	}
+}
+
+func TestValidateToken_ExpiredToken(t *testing.T) {
+	// Create service with very short expiry
+	shortExpiry := 1 * time.Millisecond
+	svc, _ := NewService(testSecret, shortExpiry, testRefreshExpiry)
+
+	token, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	// Wait for token to expire
+	time.Sleep(10 * time.Millisecond)
 
 	_, err = svc.ValidateToken(token)
 	if err == nil {
-		t.Error("expected error for expired token")
+		t.Error("ValidateToken() should fail for expired token")
 	}
 }
 
 func TestValidateToken_InvalidSignature(t *testing.T) {
-	svc1, _ := NewService(testSecret, 15*time.Minute, 168*time.Hour)
-	svc2, _ := NewService("different-secret-that-is-32-bytes!!", 15*time.Minute, 168*time.Hour)
+	svc1, _ := NewService("secret1-at-least-32-chars-long-11111", testAccessExpiry, testRefreshExpiry)
+	svc2, _ := NewService("secret2-at-least-32-chars-long-22222", testAccessExpiry, testRefreshExpiry)
 
-	token, _ := svc1.GenerateAccessToken(123, "user")
-	_, err := svc2.ValidateToken(token)
+	// Generate token with svc1
+	token, err := svc1.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
 
+	// Try to validate with svc2 (different secret)
+	_, err = svc2.ValidateToken(token)
 	if err == nil {
-		t.Error("expected error for invalid signature")
+		t.Error("ValidateToken() should fail for token signed with different secret")
 	}
 }
 
 func TestValidateToken_MalformedToken(t *testing.T) {
-	svc, _ := NewValidatorOnly(testSecret)
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
 
 	tests := []struct {
 		name  string
 		token string
 	}{
-		{"empty string", ""},
-		{"random string", "not-a-valid-token"},
-		{"partial jwt", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"},
-		{"invalid base64", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.###.xyz"},
+		{
+			name:  "empty token",
+			token: "",
+		},
+		{
+			name:  "random string",
+			token: "not-a-jwt-token",
+		},
+		{
+			name:  "incomplete token",
+			token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+		},
+		{
+			name:  "token with invalid parts",
+			token: "header.payload",
+		},
+		{
+			name:  "invalid base64",
+			token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.###.xyz",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := svc.ValidateToken(tt.token)
 			if err == nil {
-				t.Errorf("expected error for malformed token: %s", tt.token)
+				t.Error("ValidateToken() should fail for malformed token")
 			}
 		})
 	}
 }
 
+func TestValidateToken_TamperedToken(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	token, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	// Tamper with the token by changing a character
+	tamperedToken := token[:len(token)-5] + "XXXXX"
+
+	_, err = svc.ValidateToken(tamperedToken)
+	if err == nil {
+		t.Error("ValidateToken() should fail for tampered token")
+	}
+}
+
 func TestValidateToken_WrongSigningMethod(t *testing.T) {
-	// Create a token with a different signing method (none)
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	// Create a token header claiming RS256 (RSA) instead of HS256 (HMAC)
+	// #nosec G101 - This is a test token, not actual credentials
+	tokenString := "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6InRlc3R1c2VyIiwiZXhwIjoxNzAwMDAwMDAwfQ.invalid_signature"
+
+	_, err := svc.ValidateToken(tokenString)
+	if err == nil {
+		t.Error("ValidateToken() should fail for token with wrong signing method")
+	}
+}
+
+func TestValidateToken_WrongSigningMethodNone(t *testing.T) {
+	// Create a token with signing method "none"
 	claims := &Claims{
 		UserID:   123,
 		Username: "user",
@@ -261,9 +615,238 @@ func TestValidateToken_WrongSigningMethod(t *testing.T) {
 	_, err := svc.ValidateToken(tokenString)
 
 	if err == nil {
-		t.Error("expected error for wrong signing method")
+		t.Error("ValidateToken() should fail for token with 'none' signing method")
 	}
 }
+
+func TestValidateToken_InvalidClaimsStructure(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	// Generate a valid token
+	validToken, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	// Parse the token to get its parts
+	parts := strings.Split(validToken, ".")
+	if len(parts) != 3 {
+		t.Fatalf("Expected 3 parts in JWT, got %d", len(parts))
+	}
+
+	// Create a token with corrupted payload but valid signature structure
+	corruptedPayload := "eyJpbnZhbGlkIjoiY2xhaW1zIn0" // {"invalid":"claims"}
+	corruptedToken := parts[0] + "." + corruptedPayload + "." + parts[2]
+
+	_, err = svc.ValidateToken(corruptedToken)
+	if err == nil {
+		t.Error("ValidateToken() should fail for token with invalid claims structure")
+	}
+}
+
+func TestValidateToken_ExpiryBoundary(t *testing.T) {
+	// Test token validation exactly at expiry boundary
+	// JWT timestamps are truncated to seconds, so use multi-second expiry
+	shortExpiry := 3 * time.Second
+	svc, _ := NewService(testSecret, shortExpiry, testRefreshExpiry)
+
+	token, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	// Should be valid immediately
+	claims, err := svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+	if claims == nil {
+		t.Fatal("Claims should not be nil")
+	}
+
+	// Wait 1 second - should still be valid
+	time.Sleep(1 * time.Second)
+
+	// Should still be valid
+	claims, err = svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+	if claims == nil {
+		t.Fatal("Claims should not be nil")
+	}
+
+	// Wait past expiry (3+ seconds total)
+	time.Sleep(2500 * time.Millisecond)
+
+	// Should now be invalid
+	_, err = svc.ValidateToken(token)
+	if err == nil {
+		t.Error("ValidateToken() should fail for expired token")
+	}
+}
+
+func TestValidateToken_RemainingTime(t *testing.T) {
+	svc, _ := NewService(testSecret, 10*time.Second, testRefreshExpiry)
+
+	token, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	// Validate immediately and check remaining time
+	claims, err := svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+
+	remaining := time.Until(claims.ExpiresAt.Time)
+
+	// Should be close to 10 seconds (within 1 second tolerance)
+	if remaining < 9*time.Second || remaining > 11*time.Second {
+		t.Errorf("Remaining time = %v, want ~10s", remaining)
+	}
+
+	// Wait 2 seconds
+	time.Sleep(2 * time.Second)
+
+	// Check remaining time again
+	claims, err = svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+
+	remaining = time.Until(claims.ExpiresAt.Time)
+
+	// Should be close to 8 seconds (within 1 second tolerance)
+	if remaining < 7*time.Second || remaining > 9*time.Second {
+		t.Errorf("Remaining time = %v, want ~8s", remaining)
+	}
+}
+
+// =============================================================================
+// Expiry Tests
+// =============================================================================
+
+func TestGetExpiryMethods(t *testing.T) {
+	customAccess := 30 * time.Minute
+	customRefresh := 720 * time.Hour
+
+	svc, _ := NewService(testSecret, customAccess, customRefresh)
+
+	if got := svc.GetAccessExpiry(); got != customAccess {
+		t.Errorf("GetAccessExpiry() = %v, want %v", got, customAccess)
+	}
+	if got := svc.GetRefreshExpiry(); got != customRefresh {
+		t.Errorf("GetRefreshExpiry() = %v, want %v", got, customRefresh)
+	}
+}
+
+func TestAccessTokenExpiry(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	token, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	claims, err := svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+
+	// Calculate expected expiry
+	expectedExpiry := claims.IssuedAt.Add(testAccessExpiry)
+	actualExpiry := claims.ExpiresAt.Time
+
+	// Should be within 1 second due to timing
+	diff := actualExpiry.Sub(expectedExpiry)
+	if diff < -time.Second || diff > time.Second {
+		t.Errorf("Expiry difference = %v, want within 1 second", diff)
+	}
+}
+
+func TestRefreshTokenExpiry(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	token, err := svc.GenerateRefreshToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateRefreshToken() error = %v", err)
+	}
+
+	claims, err := svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+
+	// Calculate expected expiry
+	expectedExpiry := claims.IssuedAt.Add(testRefreshExpiry)
+	actualExpiry := claims.ExpiresAt.Time
+
+	// Should be within 1 second due to timing
+	diff := actualExpiry.Sub(expectedExpiry)
+	if diff < -time.Second || diff > time.Second {
+		t.Errorf("Expiry difference = %v, want within 1 second", diff)
+	}
+
+	// Refresh token should expire much later than access token
+	accessToken, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	accessClaims, err := svc.ValidateToken(accessToken)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+
+	if !claims.ExpiresAt.After(accessClaims.ExpiresAt.Time) {
+		t.Error("Refresh token should expire after access token")
+	}
+}
+
+func TestVeryShortExpiry(t *testing.T) {
+	svc, _ := NewService(testSecret, 1*time.Nanosecond, testRefreshExpiry)
+
+	token, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	// Token should be expired almost immediately due to JWT second precision
+	time.Sleep(100 * time.Millisecond)
+
+	_, err = svc.ValidateToken(token)
+	if err == nil {
+		t.Error("ValidateToken() should fail for token with nanosecond expiry")
+	}
+}
+
+func TestVeryLongExpiry(t *testing.T) {
+	longExpiry := 8760 * time.Hour // 1 year
+	svc, _ := NewService(testSecret, longExpiry, testRefreshExpiry)
+
+	token, err := svc.GenerateAccessToken(1, "testuser")
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	claims, err := svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+
+	// Verify expiry is approximately 1 year from now
+	expectedExpiry := claims.IssuedAt.Add(longExpiry)
+	diff := claims.ExpiresAt.Sub(expectedExpiry)
+	if diff < -time.Second || diff > time.Second {
+		t.Errorf("Expiry difference = %v, want within 1 second", diff)
+	}
+}
+
+// =============================================================================
+// GetTTL Tests
+// =============================================================================
 
 func TestGetTTL(t *testing.T) {
 	tests := []struct {
@@ -309,82 +892,100 @@ func TestGetTTL(t *testing.T) {
 	}
 }
 
-func TestGetExpiry(t *testing.T) {
-	accessExpiry := 15 * time.Minute
-	refreshExpiry := 168 * time.Hour
+// =============================================================================
+// Concurrency Tests
+// =============================================================================
 
-	svc, err := NewService(testSecret, accessExpiry, refreshExpiry)
-	if err != nil {
-		t.Fatalf("failed to create service: %v", err)
+func TestConcurrentTokenGeneration(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	concurrency := 10
+	done := make(chan bool, concurrency)
+	tokens := make(chan string, concurrency)
+
+	// Generate tokens concurrently
+	for i := range concurrency {
+		go func(userID int64) {
+			token, err := svc.GenerateAccessToken(userID, "testuser")
+			if err != nil {
+				t.Errorf("GenerateAccessToken() error = %v", err)
+			}
+			tokens <- token
+			done <- true
+		}(int64(i + 1))
 	}
 
-	if svc.GetAccessExpiry() != accessExpiry {
-		t.Errorf("expected access expiry %v, got %v", accessExpiry, svc.GetAccessExpiry())
+	// Wait for all goroutines
+	for range concurrency {
+		<-done
 	}
-	if svc.GetRefreshExpiry() != refreshExpiry {
-		t.Errorf("expected refresh expiry %v, got %v", refreshExpiry, svc.GetRefreshExpiry())
+	close(tokens)
+
+	// Verify all tokens are valid and unique
+	seen := make(map[string]bool)
+	count := 0
+	for token := range tokens {
+		if token == "" {
+			t.Error("Generated token is empty")
+			continue
+		}
+
+		if seen[token] {
+			t.Errorf("Duplicate token generated: %s", token)
+		}
+		seen[token] = true
+
+		claims, err := svc.ValidateToken(token)
+		if err != nil {
+			t.Errorf("ValidateToken() error = %v", err)
+		}
+		if claims == nil {
+			t.Error("Claims should not be nil")
+		}
+		count++
 	}
 
-	// Validator-only should return 0
-	validator, _ := NewValidatorOnly(testSecret)
-	if validator.GetAccessExpiry() != 0 {
-		t.Errorf("expected 0 access expiry for validator, got %v", validator.GetAccessExpiry())
-	}
-	if validator.GetRefreshExpiry() != 0 {
-		t.Errorf("expected 0 refresh expiry for validator, got %v", validator.GetRefreshExpiry())
+	if count != concurrency {
+		t.Errorf("Expected %d tokens, got %d", concurrency, count)
 	}
 }
 
-func TestGenerateToken_InputValidation(t *testing.T) {
-	svc, err := NewService(testSecret, 15*time.Minute, 168*time.Hour)
+func TestConcurrentTokenValidation(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	// Generate a single token
+	token, err := svc.GenerateAccessToken(1, "testuser")
 	if err != nil {
-		t.Fatalf("failed to create service: %v", err)
+		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
 
-	tests := []struct {
-		name     string
-		userID   int64
-		username string
-		wantErr  error
-	}{
-		{
-			name:     "valid inputs",
-			userID:   123,
-			username: "testuser",
-			wantErr:  nil,
-		},
-		{
-			name:     "zero user ID",
-			userID:   0,
-			username: "testuser",
-			wantErr:  ErrInvalidUserID,
-		},
-		{
-			name:     "negative user ID",
-			userID:   -1,
-			username: "testuser",
-			wantErr:  ErrInvalidUserID,
-		},
-		{
-			name:     "empty username",
-			userID:   123,
-			username: "",
-			wantErr:  ErrEmptyUsername,
-		},
+	concurrency := 20
+	done := make(chan bool, concurrency)
+	errors := make(chan error, concurrency)
+
+	// Validate token concurrently
+	for range concurrency {
+		go func() {
+			claims, err := svc.ValidateToken(token)
+			if err != nil {
+				errors <- err
+			} else if claims == nil {
+				errors <- jwt.ErrTokenInvalidClaims
+			} else if claims.UserID != 1 {
+				errors <- jwt.ErrTokenInvalidClaims
+			}
+			done <- true
+		}()
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name+" (access)", func(t *testing.T) {
-			_, err := svc.GenerateAccessToken(tt.userID, tt.username)
-			if err != tt.wantErr {
-				t.Errorf("GenerateAccessToken() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-		t.Run(tt.name+" (refresh)", func(t *testing.T) {
-			_, err := svc.GenerateRefreshToken(tt.userID, tt.username)
-			if err != tt.wantErr {
-				t.Errorf("GenerateRefreshToken() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
+	// Wait for all goroutines
+	for range concurrency {
+		<-done
+	}
+	close(errors)
+
+	// Check for any errors
+	for err := range errors {
+		t.Errorf("Concurrent validation error: %v", err)
 	}
 }
