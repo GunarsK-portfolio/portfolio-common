@@ -473,8 +473,10 @@ This module follows semantic versioning. Current version: `v0.21.0`
 
 ### v0.21.0
 
-- **BREAKING**: `AuthMiddleware` now uses local JWT validation instead of HTTP calls
-- `NewAuthMiddleware(authServiceURL string, opts...)` changed to `NewAuthMiddleware(jwtService jwt.Service)`
+- **BREAKING**: `AuthMiddleware` now uses local JWT validation instead of HTTP
+  calls
+- `NewAuthMiddleware(authServiceURL string, opts...)` changed to
+  `NewAuthMiddleware(jwtService jwt.Service)`
 - **ADDED**: New `jwt` package for local token validation
 - **REMOVED**: `WithTimeout` option (no longer needed - no HTTP calls)
 - Services must now provide `JWT_SECRET` environment variable

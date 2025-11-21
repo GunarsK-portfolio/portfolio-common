@@ -13,6 +13,7 @@ type ServiceConfig struct {
 	Port           string   `validate:"required,number,min=1,max=65535"`
 	Environment    string   `validate:"oneof=development staging production"`
 	AllowedOrigins []string `validate:"required,min=1,dive,required"`
+	SwaggerHost    string   // Optional: Swagger UI host (e.g., "api.example.com"). Empty disables swagger.
 }
 
 // NewServiceConfig loads service configuration from environment variables
@@ -33,6 +34,7 @@ func NewServiceConfig(defaultPort string) ServiceConfig {
 		Port:           GetEnv("PORT", defaultPort),
 		Environment:    GetEnv("ENVIRONMENT", "development"),
 		AllowedOrigins: allowedOrigins,
+		SwaggerHost:    GetEnv("SWAGGER_HOST", ""),
 	}
 
 	validate := validator.New()

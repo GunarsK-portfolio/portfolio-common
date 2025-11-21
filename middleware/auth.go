@@ -35,7 +35,7 @@ func (m *AuthMiddleware) ValidateToken() gin.HandlerFunc {
 		// Validate token locally
 		claims, err := m.jwtService.ValidateToken(token)
 		if err != nil {
-			slog.Debug("token validation failed",
+			slog.Warn("token validation failed",
 				"error", err,
 				"path", c.Request.URL.Path,
 			)

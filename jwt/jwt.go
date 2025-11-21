@@ -1,3 +1,4 @@
+// Package jwt provides JWT token generation and validation for portfolio services.
 package jwt
 
 import (
@@ -7,7 +8,17 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Claims represents JWT token claims.
+// Common errors returned by the JWT service.
+var (
+	ErrSecretTooShort       = errors.New("JWT secret must be at least 32 bytes (256 bits)")
+	ErrInvalidSigningMethod = errors.New("invalid signing method: expected HMAC")
+	ErrInvalidToken         = errors.New("invalid token")
+	ErrTokenGenDisabled     = errors.New("token generation not configured")
+	ErrInvalidUserID        = errors.New("user ID must be positive")
+	ErrEmptyUsername        = errors.New("username cannot be empty")
+)
+
+// Claims represents JWT token claims with user information.
 type Claims struct {
 	UserID   int64  `json:"user_id"`
 	Username string `json:"username"`
@@ -29,11 +40,11 @@ type service struct {
 	refreshExpiry time.Duration
 }
 
-// NewService creates a new JWT Service instance.
-// Returns error if secret is empty or less than 32 bytes for security.
+// NewService creates a new JWT Service for generating and validating tokens.
+// Secret must be at least 32 bytes for HMAC-SHA256 security.
 func NewService(secret string, accessExpiry, refreshExpiry time.Duration) (Service, error) {
 	if len(secret) < 32 {
-		return nil, errors.New("JWT secret must be at least 32 bytes")
+		return nil, ErrSecretTooShort
 	}
 	return &service{
 		secret:        secret,
@@ -43,10 +54,10 @@ func NewService(secret string, accessExpiry, refreshExpiry time.Duration) (Servi
 }
 
 // NewValidatorOnly creates a JWT service for validation only (no token generation).
-// Use this for services that only need to validate tokens, not generate them.
+// Use for services that only need to validate tokens (admin-api, files-api).
 func NewValidatorOnly(secret string) (Service, error) {
 	if len(secret) < 32 {
-		return nil, errors.New("JWT secret must be at least 32 bytes")
+		return nil, ErrSecretTooShort
 	}
 	return &service{
 		secret:        secret,
@@ -55,10 +66,11 @@ func NewValidatorOnly(secret string) (Service, error) {
 	}, nil
 }
 
+// ValidateToken parses and validates a JWT token string.
 func (s *service) ValidateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("invalid signing method")
+			return nil, ErrInvalidSigningMethod
 		}
 		return []byte(s.secret), nil
 	})
@@ -71,24 +83,33 @@ func (s *service) ValidateToken(tokenString string) (*Claims, error) {
 		return claims, nil
 	}
 
-	return nil, errors.New("invalid token")
+	return nil, ErrInvalidToken
 }
 
+// GenerateAccessToken creates a short-lived access token for the given user.
 func (s *service) GenerateAccessToken(userID int64, username string) (string, error) {
 	if s.accessExpiry == 0 {
-		return "", errors.New("access token generation not configured")
+		return "", ErrTokenGenDisabled
 	}
 	return s.generateToken(userID, username, s.accessExpiry)
 }
 
+// GenerateRefreshToken creates a long-lived refresh token for the given user.
 func (s *service) GenerateRefreshToken(userID int64, username string) (string, error) {
 	if s.refreshExpiry == 0 {
-		return "", errors.New("refresh token generation not configured")
+		return "", ErrTokenGenDisabled
 	}
 	return s.generateToken(userID, username, s.refreshExpiry)
 }
 
 func (s *service) generateToken(userID int64, username string, expiry time.Duration) (string, error) {
+	if userID <= 0 {
+		return "", ErrInvalidUserID
+	}
+	if username == "" {
+		return "", ErrEmptyUsername
+	}
+
 	claims := Claims{
 		UserID:   userID,
 		Username: username,
@@ -102,10 +123,12 @@ func (s *service) generateToken(userID int64, username string, expiry time.Durat
 	return token.SignedString([]byte(s.secret))
 }
 
+// GetAccessExpiry returns the configured access token expiration duration.
 func (s *service) GetAccessExpiry() time.Duration {
 	return s.accessExpiry
 }
 
+// GetRefreshExpiry returns the configured refresh token expiration duration.
 func (s *service) GetRefreshExpiry() time.Duration {
 	return s.refreshExpiry
 }
