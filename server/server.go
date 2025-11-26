@@ -48,23 +48,43 @@ func DefaultConfig(port string) Config {
 //
 // The handler is typically a *gin.Engine or any http.Handler.
 func Run(handler http.Handler, cfg Config, logger *slog.Logger) error {
+	if handler == nil {
+		return fmt.Errorf("handler cannot be nil")
+	}
+
 	// Guard against nil logger
 	if logger == nil {
 		logger = slog.Default()
 	}
 
-	// Apply port default if zero value
+	// Apply defaults for zero values
 	port := cfg.Port
 	if port == "" {
 		port = "8080"
+	}
+	shutdownTimeout := cfg.ShutdownTimeout
+	if shutdownTimeout == 0 {
+		shutdownTimeout = 30 * time.Second
+	}
+	readTimeout := cfg.ReadTimeout
+	if readTimeout == 0 {
+		readTimeout = 30 * time.Second
+	}
+	writeTimeout := cfg.WriteTimeout
+	if writeTimeout == 0 {
+		writeTimeout = 30 * time.Second
+	}
+	idleTimeout := cfg.IdleTimeout
+	if idleTimeout == 0 {
+		idleTimeout = 120 * time.Second
 	}
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
 		Handler:      handler,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-		IdleTimeout:  cfg.IdleTimeout,
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
+		IdleTimeout:  idleTimeout,
 	}
 
 	// Channel to receive shutdown signals
@@ -91,11 +111,11 @@ func Run(handler http.Handler, cfg Config, logger *slog.Logger) error {
 	}
 
 	// Create context with timeout for shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
 	// Attempt graceful shutdown
-	logger.Info("Shutting down server", "timeout", cfg.ShutdownTimeout.String())
+	logger.Info("Shutting down server", "timeout", shutdownTimeout.String())
 	if err := srv.Shutdown(ctx); err != nil {
 		return fmt.Errorf("server shutdown error: %w", err)
 	}
@@ -118,7 +138,14 @@ func RunWithCleanup(handler http.Handler, cfg Config, logger *slog.Logger, clean
 
 	if cleanup != nil {
 		logger.Info("Running cleanup")
-		cleanup()
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.Error("Cleanup panicked", "panic", r)
+				}
+			}()
+			cleanup()
+		}()
 		logger.Info("Cleanup completed")
 	}
 
