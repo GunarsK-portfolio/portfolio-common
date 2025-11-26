@@ -42,11 +42,25 @@ func DefaultConfig(port string) Config {
 }
 
 // Run starts an HTTP server with graceful shutdown support.
-// It blocks until SIGTERM or SIGINT is received, then gracefully shuts down.
+// It blocks until either:
+//   - SIGTERM or SIGINT is received (graceful shutdown), or
+//   - ListenAndServe fails to start (returns error immediately)
+//
 // The handler is typically a *gin.Engine or any http.Handler.
 func Run(handler http.Handler, cfg Config, logger *slog.Logger) error {
+	// Guard against nil logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	// Apply port default if zero value
+	port := cfg.Port
+	if port == "" {
+		port = "8080"
+	}
+
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%s", cfg.Port),
+		Addr:         fmt.Sprintf(":%s", port),
 		Handler:      handler,
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
@@ -91,9 +105,15 @@ func Run(handler http.Handler, cfg Config, logger *slog.Logger) error {
 }
 
 // RunWithCleanup starts an HTTP server with graceful shutdown and cleanup function support.
-// The cleanup function is called after the server has stopped accepting new connections
-// but before the function returns. Use this to close database connections, flush buffers, etc.
+// The cleanup function is always called (if non-nil) after Run returns, regardless of whether
+// the server shut down gracefully or failed to start. This ensures resources like database
+// connections are always released. Use this to close database connections, flush buffers, etc.
 func RunWithCleanup(handler http.Handler, cfg Config, logger *slog.Logger, cleanup func()) error {
+	// Guard against nil logger for cleanup logging
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	err := Run(handler, cfg, logger)
 
 	if cleanup != nil {
