@@ -7,7 +7,7 @@ type Profile struct {
 	FullName     string       `json:"name" gorm:"column:full_name" binding:"required"`
 	Title        string       `json:"title"`
 	Bio          string       `json:"tagline"`
-	Email        string       `json:"email"`
+	Email        string       `json:"email" binding:"omitempty,email"`
 	Phone        string       `json:"phone,omitempty"`
 	Location     string       `json:"location,omitempty"`
 	AvatarFileID *int64       `json:"avatarFileId,omitempty" gorm:"column:avatar_file_id"`
