@@ -9,8 +9,8 @@ type PortfolioProject struct {
 	Description     string    `json:"description"`
 	LongDescription string    `json:"longDescription,omitempty" gorm:"column:long_description"`
 	ImageFileID     *int64    `json:"imageFileId,omitempty" gorm:"column:image_file_id"`
-	GithubURL       string    `json:"githubUrl,omitempty" gorm:"column:github_url"`
-	LiveURL         string    `json:"liveUrl,omitempty" gorm:"column:live_url"`
+	GithubURL       string    `json:"githubUrl,omitempty" gorm:"column:github_url" binding:"omitempty,url"`
+	LiveURL         string    `json:"liveUrl,omitempty" gorm:"column:live_url" binding:"omitempty,url"`
 	StartDate       *string   `json:"startDate,omitempty" gorm:"column:start_date"`
 	EndDate         *string   `json:"endDate,omitempty" gorm:"column:end_date"`
 	IsOngoing       bool      `json:"isOngoing" gorm:"column:is_ongoing"`
