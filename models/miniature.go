@@ -39,7 +39,6 @@ type MiniatureProject struct {
 	MiniatureFiles []MiniatureFile `json:"-" gorm:"foreignKey:MiniatureProjectID"`
 
 	// Computed fields (populated by repository layer)
-	Files      []MiniatureFile  `json:"-" gorm:"-"`
 	Images     []Image          `json:"images,omitempty" gorm:"-"`
 	Techniques []string         `json:"techniques,omitempty" gorm:"-"`
 	Paints     []MiniaturePaint `json:"paints,omitempty" gorm:"-"`
