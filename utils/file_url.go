@@ -22,3 +22,18 @@ func PopulateFileURL(file *models.StorageFile, filesAPIURL string) {
 		file.URL = BuildFileURL(filesAPIURL, file.FileType, file.S3Key)
 	}
 }
+
+// ConvertMiniatureFilesToImages transforms MiniatureFile slice to simplified Image slice for frontend
+func ConvertMiniatureFilesToImages(files []models.MiniatureFile, filesAPIURL string) []models.Image {
+	images := make([]models.Image, 0, len(files))
+	for _, file := range files {
+		if file.File != nil {
+			images = append(images, models.Image{
+				ID:      file.ID,
+				URL:     BuildFileURL(filesAPIURL, file.File.FileType, file.File.S3Key),
+				Caption: file.Caption,
+			})
+		}
+	}
+	return images
+}
