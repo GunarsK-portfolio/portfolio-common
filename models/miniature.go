@@ -106,7 +106,7 @@ type MiniatureProjectPaint struct {
 	ID                 int64     `json:"id" gorm:"primaryKey"`
 	MiniatureProjectID int64     `json:"miniatureProjectId" gorm:"column:miniature_project_id"`
 	PaintID            int64     `json:"paintId" gorm:"column:paint_id"`
-	UsageNotes         string    `json:"notes,omitempty" gorm:"column:usage_notes"`
+	Notes              string    `json:"notes,omitempty" gorm:"column:usage_notes"`
 	CreatedAt          time.Time `json:"createdAt" gorm:"column:created_at"`
 
 	// Associations
