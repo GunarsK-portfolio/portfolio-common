@@ -35,13 +35,13 @@ type MiniatureProject struct {
 	UpdatedAt     time.Time `json:"updatedAt" gorm:"column:updated_at"`
 
 	// Associations
-	Theme          *MiniatureTheme `json:"theme,omitempty" gorm:"foreignKey:ThemeID"`
-	MiniatureFiles []MiniatureFile `json:"-" gorm:"foreignKey:MiniatureProjectID"`
+	Theme          *MiniatureTheme             `json:"theme,omitempty" gorm:"foreignKey:ThemeID"`
+	MiniatureFiles []MiniatureFile             `json:"-" gorm:"foreignKey:MiniatureProjectID"`
+	Techniques     []MiniatureProjectTechnique `json:"techniques,omitempty" gorm:"foreignKey:MiniatureProjectID"`
+	Paints         []MiniatureProjectPaint     `json:"paints,omitempty" gorm:"foreignKey:MiniatureProjectID"`
 
-	// Computed fields (populated by repository layer)
-	Images     []Image          `json:"images,omitempty" gorm:"-"`
-	Techniques []string         `json:"techniques,omitempty" gorm:"-"`
-	Paints     []MiniaturePaint `json:"paints,omitempty" gorm:"-"`
+	// Computed field (populated by repository layer - requires URL building)
+	Images []Image `json:"images,omitempty" gorm:"-"`
 }
 
 func (MiniatureProject) TableName() string {
@@ -67,6 +67,54 @@ type Image struct {
 	ID      int64  `json:"id"`
 	URL     string `json:"url"`
 	Caption string `json:"caption"`
+}
+
+// MiniatureTechnique represents a painting technique in the master technique list (cl_techniques table).
+// This model is used for managing the technique catalog with CRUD operations.
+type MiniatureTechnique struct {
+	ID              int64     `json:"id" gorm:"primaryKey"`
+	Name            string    `json:"name" binding:"required"`
+	Description     string    `json:"description"`
+	DifficultyLevel string    `json:"difficultyLevel,omitempty" gorm:"column:difficulty_level"`
+	DisplayOrder    int       `json:"displayOrder,omitempty" gorm:"column:display_order"`
+	CreatedAt       time.Time `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt       time.Time `json:"updatedAt" gorm:"column:updated_at"`
+}
+
+func (MiniatureTechnique) TableName() string {
+	return "miniatures.cl_techniques"
+}
+
+// MiniatureProjectTechnique is the junction table linking projects to techniques
+type MiniatureProjectTechnique struct {
+	ID                 int64     `json:"id" gorm:"primaryKey"`
+	MiniatureProjectID int64     `json:"miniatureProjectId" gorm:"column:miniature_project_id"`
+	TechniqueID        int64     `json:"techniqueId" gorm:"column:technique_id"`
+	Notes              string    `json:"notes,omitempty"`
+	CreatedAt          time.Time `json:"createdAt" gorm:"column:created_at"`
+
+	// Associations
+	Technique *MiniatureTechnique `json:"technique,omitempty" gorm:"foreignKey:TechniqueID"`
+}
+
+func (MiniatureProjectTechnique) TableName() string {
+	return "miniatures.miniature_techniques"
+}
+
+// MiniatureProjectPaint is the junction table linking projects to paints
+type MiniatureProjectPaint struct {
+	ID                 int64     `json:"id" gorm:"primaryKey"`
+	MiniatureProjectID int64     `json:"miniatureProjectId" gorm:"column:miniature_project_id"`
+	PaintID            int64     `json:"paintId" gorm:"column:paint_id"`
+	Notes              string    `json:"notes,omitempty" gorm:"column:usage_notes"`
+	CreatedAt          time.Time `json:"createdAt" gorm:"column:created_at"`
+
+	// Associations
+	Paint *MiniaturePaint `json:"paint,omitempty" gorm:"foreignKey:PaintID"`
+}
+
+func (MiniatureProjectPaint) TableName() string {
+	return "miniatures.miniature_paints"
 }
 
 // MiniaturePaint represents a paint in the master paint list (cl_paints table).
