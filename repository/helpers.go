@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -9,6 +10,9 @@ import (
 // CheckRowsAffected returns gorm.ErrRecordNotFound if no rows were affected.
 // Use for delete/update operations that should fail if target doesn't exist.
 func CheckRowsAffected(result *gorm.DB) error {
+	if result == nil {
+		return errors.New("CheckRowsAffected: result is nil")
+	}
 	if result.Error != nil {
 		return result.Error
 	}
