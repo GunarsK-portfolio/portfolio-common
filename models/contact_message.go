@@ -38,7 +38,7 @@ type ContactMessageCreate struct {
 	Email    string `json:"email" binding:"required,email,max=255"`
 	Subject  string `json:"subject" binding:"required,max=500"`
 	Message  string `json:"message" binding:"required,max=10000"`
-	Honeypot string `json:"website"` // Named "website" to trick bots
+	Honeypot string `json:"website" swaggerignore:"true"`
 }
 
 // IsSpam checks if the honeypot field is filled (indicates bot submission)
