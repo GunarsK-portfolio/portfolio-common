@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // ContactMessage represents a contact form submission
 type ContactMessage struct {
@@ -34,11 +37,11 @@ type ContactMessageCreate struct {
 	Name     string `json:"name" binding:"required,max=255"`
 	Email    string `json:"email" binding:"required,email,max=255"`
 	Subject  string `json:"subject" binding:"required,max=500"`
-	Message  string `json:"message" binding:"required"`
+	Message  string `json:"message" binding:"required,max=10000"`
 	Honeypot string `json:"website"` // Named "website" to trick bots
 }
 
 // IsSpam checks if the honeypot field is filled (indicates bot submission)
 func (c *ContactMessageCreate) IsSpam() bool {
-	return c.Honeypot != ""
+	return strings.TrimSpace(c.Honeypot) != ""
 }
