@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/GunarsK-portfolio/portfolio-common/workflows/CI/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/GunarsK-portfolio/portfolio-common)](https://goreportcard.com/report/github.com/GunarsK-portfolio/portfolio-common)
-[![codecov](https://codecov.io/gh/GunarsK-portfolio/portfolio-common/graph/badge.svg?token=2BU8LGY54U)](https://codecov.io/gh/GunarsK-portfolio/portfolio-common)
+[![codecov](https://codecov.io/gh/GunarsK-portfolio/portfolio-common/graph/badge.svg)](https://codecov.io/gh/GunarsK-portfolio/portfolio-common)
 [![CodeRabbit](https://img.shields.io/coderabbit/prs/github/GunarsK-portfolio/portfolio-common?label=CodeRabbit&color=2ea44f)](https://coderabbit.ai)
 
 Shared Go package for common code across portfolio microservices.
