@@ -34,7 +34,7 @@ func NewSafeUpdater(db *gorm.DB) *SafeUpdater {
 }
 
 // Update performs an update excluding system fields (ID, CreatedAt, UpdatedAt).
-// Uses Updates to avoid zero-value overwrites unlike Save.
+// Uses Select("*") with Updates to include zero-value fields (e.g., bool false).
 // Checks existence first to ensure idempotent updates (no false 404s).
 func (s *SafeUpdater) Update(ctx context.Context, model interface{}, id int64) error {
 	return s.UpdateWithOptions(ctx, model, id, nil)
@@ -66,5 +66,6 @@ func (s *SafeUpdater) UpdateWithOptions(ctx context.Context, model interface{}, 
 	}
 
 	// Now perform update - RowsAffected=0 is OK (idempotent)
-	return db.Omit("ID", "CreatedAt", "UpdatedAt").Updates(model).Error
+	// Select("*") ensures zero-value fields (like bool false) are included in the update
+	return db.Select("*").Omit("ID", "CreatedAt", "UpdatedAt").Updates(model).Error
 }
