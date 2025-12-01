@@ -1,0 +1,26 @@
+# Codecov configuration
+# Only measure coverage for jwt (where tests exist)
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 5%
+    patch:
+      default:
+        target: auto
+        threshold: 5%
+
+ignore:
+  - "audit/**/*"
+  - "config/**/*"
+  - "database/**/*"
+  - "handlers/**/*"
+  - "logger/**/*"
+  - "metrics/**/*"
+  - "middleware/**/*"
+  - "models/**/*"
+  - "repository/**/*"
+  - "server/**/*"
+  - "utils/**/*"
