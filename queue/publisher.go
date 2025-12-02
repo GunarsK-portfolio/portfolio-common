@@ -78,6 +78,10 @@ func declareExchangeAndQueue(ch *amqp.Channel, exchange, queue string, queueArgs
 // Note: This publisher does not handle automatic reconnection. If the connection drops,
 // callers should create a new publisher instance.
 //
+// Retry flow: Consumers must explicitly call PublishToRetry() to route failed messages through
+// the retry chain. The main queue's dead-letter config routes directly to DLQ for unhandled
+// failures (e.g., message rejected without calling PublishToRetry).
+//
 // If cfg.RetryDelays is empty, rejected messages route directly to the DLQ with no retry attempts.
 func NewRabbitMQPublisher(cfg config.RabbitMQConfig) (*RabbitMQPublisher, error) {
 	conn, err := amqp.Dial(cfg.URL())
@@ -178,8 +182,12 @@ func (p *RabbitMQPublisher) Publish(ctx context.Context, message interface{}) er
 // Returns error if retryIndex is out of bounds (should send to DLQ instead).
 // The correlationId should be preserved from the original message for tracing.
 func (p *RabbitMQPublisher) PublishToRetry(ctx context.Context, retryIndex int, body []byte, correlationId string) error {
-	if retryIndex < 0 || retryIndex >= p.MaxRetries() {
-		return fmt.Errorf("%w: index %d, max %d", ErrRetryOutOfBounds, retryIndex, p.MaxRetries()-1)
+	maxRetries := p.MaxRetries()
+	if maxRetries == 0 {
+		return fmt.Errorf("%w: no retry queues configured", ErrRetryOutOfBounds)
+	}
+	if retryIndex < 0 || retryIndex >= maxRetries {
+		return fmt.Errorf("%w: index %d, max %d", ErrRetryOutOfBounds, retryIndex, maxRetries-1)
 	}
 	return p.publish(ctx, p.exchange, p.retryQueues[retryIndex], body, correlationId)
 }
@@ -195,8 +203,12 @@ func (p *RabbitMQPublisher) MaxRetries() int {
 	return len(p.retryQueues)
 }
 
-// Close closes the channel and connection
+// Close closes the channel and connection.
+// Safe to call concurrently with Publish methods - will wait for in-flight publishes to complete.
 func (p *RabbitMQPublisher) Close() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	var errs []error
 
 	if p.channel != nil {
