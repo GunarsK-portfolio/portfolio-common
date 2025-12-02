@@ -28,6 +28,7 @@ func (ContactMessage) TableName() string {
 // ContactMessageStatus constants
 const (
 	MessageStatusPending = "pending"
+	MessageStatusQueued  = "queued"
 	MessageStatusSent    = "sent"
 	MessageStatusFailed  = "failed"
 )
@@ -44,4 +45,9 @@ type ContactMessageCreate struct {
 // IsSpam checks if the honeypot field is filled (indicates bot submission)
 func (c *ContactMessageCreate) IsSpam() bool {
 	return strings.TrimSpace(c.Honeypot) != ""
+}
+
+// ContactMessageEvent is the message published to the queue for processing
+type ContactMessageEvent struct {
+	MessageID int64 `json:"messageId"`
 }

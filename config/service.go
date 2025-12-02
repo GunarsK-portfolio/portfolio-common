@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -10,14 +11,21 @@ import (
 // ServiceConfig holds service-level configuration (port, environment, CORS).
 // Valid environment values: "development", "staging", "production"
 type ServiceConfig struct {
-	Port           string   `validate:"required,number,min=1,max=65535"`
+	Port           int      `validate:"required,min=1,max=65535"`
 	Environment    string   `validate:"oneof=development staging production"`
 	AllowedOrigins []string `validate:"required,min=1,dive,required"`
 	SwaggerHost    string   // Optional: Swagger UI host (e.g., "api.example.com"). Empty disables swagger.
 }
 
-// NewServiceConfig loads service configuration from environment variables
-func NewServiceConfig(defaultPort string) ServiceConfig {
+// NewServiceConfig loads service configuration from environment variables.
+// It panics if required environment variables are missing or configuration is invalid.
+func NewServiceConfig(defaultPort int) ServiceConfig {
+	portStr := GetEnv("PORT", strconv.Itoa(defaultPort))
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		panic(fmt.Sprintf("Invalid PORT: %v", err))
+	}
+
 	// Parse allowed origins from comma-separated string
 	// NO DEFAULT - CORS must be explicitly configured
 	allowedOriginsStr := GetEnvRequired("ALLOWED_ORIGINS")
@@ -31,7 +39,7 @@ func NewServiceConfig(defaultPort string) ServiceConfig {
 	}
 
 	cfg := ServiceConfig{
-		Port:           GetEnv("PORT", defaultPort),
+		Port:           port,
 		Environment:    GetEnv("ENVIRONMENT", "development"),
 		AllowedOrigins: allowedOrigins,
 		SwaggerHost:    GetEnv("SWAGGER_HOST", ""),
