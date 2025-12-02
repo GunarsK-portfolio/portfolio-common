@@ -59,8 +59,12 @@ func NewAggregator(timeout time.Duration) *Aggregator {
 	}
 }
 
-// Register adds a health checker to the aggregator
+// Register adds a health checker to the aggregator.
+// Panics if checker is nil to fail fast on misconfiguration.
 func (a *Aggregator) Register(checker Checker) {
+	if checker == nil {
+		panic("health: cannot register nil checker")
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.checkers = append(a.checkers, checker)

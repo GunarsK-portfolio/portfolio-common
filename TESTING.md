@@ -39,11 +39,11 @@ go test -v ./health/
 | Expiry Handling | 5 | TTL, boundary conditions |
 | Concurrency | 2 | Thread-safety verification |
 
-**`health/health_test.go`** - 14 tests
+**`health/health_test.go`** - 15 tests
 
 | Category | Tests | Coverage |
 |----------|-------|----------|
-| Aggregator | 5 | Constructor, Register, no checkers, timeout validation |
+| Aggregator | 6 | Constructor, Register, nil guard, no checkers, timeout |
 | Health Status | 4 | Healthy, unhealthy, degraded, priority |
 | Timeout | 1 | Context cancellation |
 | HTTP Handler | 3 | 200 OK, 503 responses |

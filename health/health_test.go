@@ -279,3 +279,15 @@ func TestNewAggregator_NegativeTimeout(t *testing.T) {
 		t.Errorf("expected default timeout %v for negative input, got %v", DefaultTimeout, agg.timeout)
 	}
 }
+
+func TestAggregator_Register_NilChecker(t *testing.T) {
+	agg := NewAggregator(5 * time.Second)
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic when registering nil checker")
+		}
+	}()
+
+	agg.Register(nil)
+}
