@@ -19,6 +19,10 @@ type RabbitMQConfig struct {
 	Exchange    string          `validate:"required"`
 	Queue       string          `validate:"required"`
 	RetryDelays []time.Duration // Delays for retry queues (e.g., 5s, 30s, 5m, 30m, 2h)
+
+	// Consumer-specific settings (optional, only used by consumers)
+	PrefetchCount int    `validate:"omitempty,min=1"` // Number of messages to prefetch (QoS), defaults to 1
+	ConsumerTag   string // Unique identifier for this consumer
 }
 
 // defaultRetryDelays provides sensible defaults for retry delays
@@ -45,13 +49,15 @@ func NewRabbitMQConfig() RabbitMQConfig {
 	}
 
 	cfg := RabbitMQConfig{
-		Host:        GetEnvRequired("RABBITMQ_HOST"),
-		Port:        port,
-		User:        GetEnvRequired("RABBITMQ_USER"),
-		Password:    GetEnvRequired("RABBITMQ_PASSWORD"),
-		Exchange:    GetEnv("RABBITMQ_EXCHANGE", "contact_messages"),
-		Queue:       GetEnv("RABBITMQ_QUEUE", "contact_messages"),
-		RetryDelays: parseRetryDelays(GetEnv("RABBITMQ_RETRY_DELAYS", "")),
+		Host:          GetEnvRequired("RABBITMQ_HOST"),
+		Port:          port,
+		User:          GetEnvRequired("RABBITMQ_USER"),
+		Password:      GetEnvRequired("RABBITMQ_PASSWORD"),
+		Exchange:      GetEnv("RABBITMQ_EXCHANGE", "contact_messages"),
+		Queue:         GetEnv("RABBITMQ_QUEUE", "contact_messages"),
+		RetryDelays:   parseRetryDelays(GetEnv("RABBITMQ_RETRY_DELAYS", "")),
+		PrefetchCount: GetEnvInt("RABBITMQ_PREFETCH_COUNT", 1),
+		ConsumerTag:   GetEnv("RABBITMQ_CONSUMER_TAG", ""),
 	}
 
 	validate := validator.New()

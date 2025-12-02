@@ -77,6 +77,34 @@ go test -v ./health/
 | Constructor | 2 | NewMinIOChecker, Name |
 | Error Handling | 2 | Nil client with/without bucket |
 
+**`queue/publisher_test.go`** - 10 tests
+
+| Category | Tests | Coverage |
+|----------|-------|----------|
+| Helper Methods | 5 | RetryQueues, DLQName, DLXName, MaxRetries |
+| Error Definitions | 1 | All publisher errors |
+| Validation | 1 | PublishToRetry bounds checking |
+| Close | 2 | Idempotent close behavior |
+| Interface | 1 | Publisher interface compliance |
+
+**`queue/consumer_test.go`** - 6 tests
+
+| Category | Tests | Coverage |
+|----------|-------|----------|
+| GetRetryCount | 1 | Header parsing (9 sub-tests) |
+| Constants | 1 | RetryCountHeader value |
+| Error Definitions | 1 | All consumer errors |
+| Close | 2 | Idempotent close behavior |
+| Interface | 1 | Consumer interface compliance |
+
+**`config/rabbitmq_test.go`** - 8 tests
+
+| Category | Tests | Coverage |
+|----------|-------|----------|
+| URL | 1 | URL generation with credentials |
+| RetryDelays | 3 | Defaults, parsing, panic cases |
+| Consumer Settings | 2 | PrefetchCount, ConsumerTag fields |
+
 ## Key Testing Patterns
 
 **Mock Checker**: Function fields allow per-test behavior customization
