@@ -78,3 +78,28 @@ func Connect(cfg PostgresConfig) (*gorm.DB, error) {
 
 	return db, nil
 }
+
+// CloseDB closes the underlying database connection pool.
+// Returns error if the connection cannot be closed.
+//
+// Example with defer and error handling:
+//
+//	db, err := Connect(cfg)
+//	if err != nil {
+//	    return err
+//	}
+//	defer func() {
+//	    if closeErr := CloseDB(db); closeErr != nil {
+//	        log.Printf("failed to close database: %v", closeErr)
+//	    }
+//	}()
+func CloseDB(db *gorm.DB) error {
+	if db == nil {
+		return nil
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get database instance: %w", err)
+	}
+	return sqlDB.Close()
+}
