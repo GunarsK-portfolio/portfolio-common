@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/GunarsK-portfolio/portfolio-common/config"
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -25,14 +27,16 @@ var (
 // Publisher defines the interface for message queue publishing with retry support
 type Publisher interface {
 	Publish(ctx context.Context, message interface{}) error
-	PublishToRetry(ctx context.Context, retryIndex int, body []byte) error
-	PublishToDLQ(ctx context.Context, body []byte) error
+	PublishToRetry(ctx context.Context, retryIndex int, body []byte, correlationId string) error
+	PublishToDLQ(ctx context.Context, body []byte, correlationId string) error
 	MaxRetries() int
 	Close() error
 }
 
-// RabbitMQPublisher implements Publisher for RabbitMQ
+// RabbitMQPublisher implements Publisher for RabbitMQ.
+// All publish methods are safe for concurrent use.
 type RabbitMQPublisher struct {
+	mu          sync.Mutex
 	conn        *amqp.Connection
 	channel     *amqp.Channel
 	exchange    string
@@ -68,8 +72,13 @@ func declareExchangeAndQueue(ch *amqp.Channel, exchange, queue string, queueArgs
 }
 
 // NewRabbitMQPublisher creates a new RabbitMQ publisher with exchange, retry queues, and DLQ.
+//
+// The publisher is safe for concurrent use from multiple goroutines.
+//
 // Note: This publisher does not handle automatic reconnection. If the connection drops,
 // callers should create a new publisher instance.
+//
+// If cfg.RetryDelays is empty, rejected messages route directly to the DLQ with no retry attempts.
 func NewRabbitMQPublisher(cfg config.RabbitMQConfig) (*RabbitMQPublisher, error) {
 	conn, err := amqp.Dial(cfg.URL())
 	if err != nil {
@@ -132,14 +141,20 @@ func NewRabbitMQPublisher(cfg config.RabbitMQConfig) (*RabbitMQPublisher, error)
 	}, nil
 }
 
-// publish is the internal helper for all publish operations
-func (p *RabbitMQPublisher) publish(ctx context.Context, exchange, routingKey string, body []byte) error {
+// publish is the internal helper for all publish operations.
+// correlationId links related messages (e.g., original + retries).
+func (p *RabbitMQPublisher) publish(ctx context.Context, exchange, routingKey string, body []byte, correlationId string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	err := p.channel.PublishWithContext(ctx, exchange, routingKey, false, false,
 		amqp.Publishing{
-			DeliveryMode: amqp.Persistent,
-			ContentType:  "application/json",
-			Body:         body,
-			Timestamp:    time.Now(),
+			DeliveryMode:  amqp.Persistent,
+			ContentType:   "application/json",
+			Body:          body,
+			Timestamp:     time.Now(),
+			MessageId:     uuid.NewString(),
+			CorrelationId: correlationId,
 		},
 	)
 	if err != nil {
@@ -148,27 +163,31 @@ func (p *RabbitMQPublisher) publish(ctx context.Context, exchange, routingKey st
 	return nil
 }
 
-// Publish sends a message to the main queue
+// Publish sends a message to the main queue.
+// Generates a new CorrelationId for tracking this message through retries.
 func (p *RabbitMQPublisher) Publish(ctx context.Context, message interface{}) error {
 	body, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrMarshalFailed, err)
 	}
-	return p.publish(ctx, p.exchange, p.queue, body)
+	correlationId := uuid.NewString()
+	return p.publish(ctx, p.exchange, p.queue, body, correlationId)
 }
 
-// PublishToRetry sends a message to a specific retry queue by index
-// Returns error if retryIndex is out of bounds (should send to DLQ instead)
-func (p *RabbitMQPublisher) PublishToRetry(ctx context.Context, retryIndex int, body []byte) error {
+// PublishToRetry sends a message to a specific retry queue by index.
+// Returns error if retryIndex is out of bounds (should send to DLQ instead).
+// The correlationId should be preserved from the original message for tracing.
+func (p *RabbitMQPublisher) PublishToRetry(ctx context.Context, retryIndex int, body []byte, correlationId string) error {
 	if retryIndex < 0 || retryIndex >= p.MaxRetries() {
 		return fmt.Errorf("%w: index %d, max %d", ErrRetryOutOfBounds, retryIndex, p.MaxRetries()-1)
 	}
-	return p.publish(ctx, p.exchange, p.retryQueues[retryIndex], body)
+	return p.publish(ctx, p.exchange, p.retryQueues[retryIndex], body, correlationId)
 }
 
-// PublishToDLQ sends a message to the dead letter queue (permanent failure)
-func (p *RabbitMQPublisher) PublishToDLQ(ctx context.Context, body []byte) error {
-	return p.publish(ctx, p.exchange+"_dlx", p.queue+"_dlq", body)
+// PublishToDLQ sends a message to the dead letter queue (permanent failure).
+// The correlationId should be preserved from the original message for tracing.
+func (p *RabbitMQPublisher) PublishToDLQ(ctx context.Context, body []byte, correlationId string) error {
+	return p.publish(ctx, p.exchange+"_dlx", p.DLQName(), body, correlationId)
 }
 
 // MaxRetries returns the number of retry queues (attempts before DLQ)

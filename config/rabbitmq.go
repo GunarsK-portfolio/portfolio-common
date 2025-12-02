@@ -80,6 +80,9 @@ func parseRetryDelays(s string) []time.Duration {
 		if err != nil {
 			panic(fmt.Sprintf("Invalid retry delay %q: %v", part, err))
 		}
+		if d <= 0 {
+			panic(fmt.Sprintf("Retry delay must be positive, got %q", part))
+		}
 		delays = append(delays, d)
 	}
 
