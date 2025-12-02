@@ -28,8 +28,9 @@ func (c *RabbitMQChecker) Check(_ context.Context) CheckResult {
 
 	if c.conn == nil {
 		return CheckResult{
-			Status: StatusUnhealthy,
-			Error:  "connection is nil",
+			Status:  StatusUnhealthy,
+			Latency: time.Since(start).String(),
+			Error:   "connection is nil",
 		}
 	}
 

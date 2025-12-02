@@ -49,3 +49,38 @@ router.GET("/health", healthAgg.Handler())
 - `healthy` - Check passed
 - `degraded` - Partial failure (e.g., missing bucket)
 - `unhealthy` - Check failed
+
+## Timeout Configuration
+
+Choose timeout based on your deployment:
+
+- **App Runner**: 5s health check timeout → use 3s aggregator timeout
+- **Docker Compose**: 10s default → use 3-5s aggregator timeout
+- **Kubernetes**: configurable → match probe timeout minus buffer
+
+## Custom Checkers
+
+Implement the `Checker` interface:
+
+```go
+type MyChecker struct {
+    client *MyClient
+}
+
+func (c *MyChecker) Name() string { return "myservice" }
+
+func (c *MyChecker) Check(ctx context.Context) health.CheckResult {
+    start := time.Now()
+    if err := c.client.Ping(ctx); err != nil {
+        return health.CheckResult{
+            Status:  health.StatusUnhealthy,
+            Latency: time.Since(start).String(),
+            Error:   err.Error(),
+        }
+    }
+    return health.CheckResult{
+        Status:  health.StatusHealthy,
+        Latency: time.Since(start).String(),
+    }
+}
+```

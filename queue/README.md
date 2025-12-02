@@ -34,6 +34,12 @@ conn := publisher.Connection()
 - Connection accessor for health checks
 - Thread-safe publishing
 
+## Connection Ownership
+
+The publisher owns and manages the RabbitMQ connection. `Connection()` returns
+the underlying connection for read-only purposes (e.g., health checks).
+**Do not call `conn.Close()` directly** - use `publisher.Close()` instead.
+
 ## Configuration
 
 ```go

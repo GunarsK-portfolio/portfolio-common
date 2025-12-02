@@ -27,11 +27,20 @@ func (c *PostgresChecker) Name() string {
 func (c *PostgresChecker) Check(ctx context.Context) CheckResult {
 	start := time.Now()
 
+	if c.db == nil {
+		return CheckResult{
+			Status:  StatusUnhealthy,
+			Latency: time.Since(start).String(),
+			Error:   "database is nil",
+		}
+	}
+
 	sqlDB, err := c.db.DB()
 	if err != nil {
 		return CheckResult{
-			Status: StatusUnhealthy,
-			Error:  fmt.Sprintf("failed to get database instance: %v", err),
+			Status:  StatusUnhealthy,
+			Latency: time.Since(start).String(),
+			Error:   fmt.Sprintf("failed to get database instance: %v", err),
 		}
 	}
 

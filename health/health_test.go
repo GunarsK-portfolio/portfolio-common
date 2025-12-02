@@ -2,8 +2,10 @@ package health
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -235,5 +237,45 @@ func TestAggregator_Handler_Degraded(t *testing.T) {
 
 	if w.Code != http.StatusServiceUnavailable {
 		t.Errorf("expected status 503 for degraded, got %d", w.Code)
+	}
+}
+
+func TestAggregator_Register_Concurrent(t *testing.T) {
+	agg := NewAggregator(5 * time.Second)
+	const numGoroutines = 100
+
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(id int) {
+			defer wg.Done()
+			agg.Register(&mockChecker{
+				name:   fmt.Sprintf("checker-%d", id),
+				result: CheckResult{Status: StatusHealthy},
+			})
+		}(i)
+	}
+
+	wg.Wait()
+
+	if len(agg.checkers) != numGoroutines {
+		t.Errorf("expected %d checkers, got %d", numGoroutines, len(agg.checkers))
+	}
+}
+
+func TestNewAggregator_ZeroTimeout(t *testing.T) {
+	agg := NewAggregator(0)
+
+	if agg.timeout != DefaultTimeout {
+		t.Errorf("expected default timeout %v for zero input, got %v", DefaultTimeout, agg.timeout)
+	}
+}
+
+func TestNewAggregator_NegativeTimeout(t *testing.T) {
+	agg := NewAggregator(-5 * time.Second)
+
+	if agg.timeout != DefaultTimeout {
+		t.Errorf("expected default timeout %v for negative input, got %v", DefaultTimeout, agg.timeout)
 	}
 }

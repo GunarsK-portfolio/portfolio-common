@@ -16,6 +16,9 @@ const (
 	StatusHealthy   Status = "healthy"
 	StatusDegraded  Status = "degraded"
 	StatusUnhealthy Status = "unhealthy"
+
+	// DefaultTimeout is used when zero or negative timeout is provided
+	DefaultTimeout = 3 * time.Second
 )
 
 // CheckResult represents the result of a single health check
@@ -44,8 +47,12 @@ type Aggregator struct {
 	mu       sync.RWMutex
 }
 
-// NewAggregator creates a new health aggregator with the specified timeout for checks
+// NewAggregator creates a new health aggregator with the specified timeout for checks.
+// If timeout is zero or negative, DefaultTimeout (3s) is used.
 func NewAggregator(timeout time.Duration) *Aggregator {
+	if timeout <= 0 {
+		timeout = DefaultTimeout
+	}
 	return &Aggregator{
 		checkers: make([]Checker, 0),
 		timeout:  timeout,

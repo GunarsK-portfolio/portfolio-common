@@ -29,8 +29,9 @@ func (c *RedisChecker) Check(ctx context.Context) CheckResult {
 
 	if c.client == nil {
 		return CheckResult{
-			Status: StatusUnhealthy,
-			Error:  "client is nil",
+			Status:  StatusUnhealthy,
+			Latency: time.Since(start).String(),
+			Error:   "client is nil",
 		}
 	}
 

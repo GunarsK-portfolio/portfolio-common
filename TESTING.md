@@ -39,14 +39,15 @@ go test -v ./health/
 | Expiry Handling | 5 | TTL, boundary conditions |
 | Concurrency | 2 | Thread-safety verification |
 
-**`health/health_test.go`** - 11 tests
+**`health/health_test.go`** - 14 tests
 
 | Category | Tests | Coverage |
 |----------|-------|----------|
-| Aggregator | 3 | Constructor, Register, no checkers |
+| Aggregator | 5 | Constructor, Register, no checkers, timeout validation |
 | Health Status | 4 | Healthy, unhealthy, degraded, priority |
 | Timeout | 1 | Context cancellation |
 | HTTP Handler | 3 | 200 OK, 503 responses |
+| Concurrency | 1 | Thread-safe Register |
 
 **`health/postgres_test.go`** - 3 tests
 

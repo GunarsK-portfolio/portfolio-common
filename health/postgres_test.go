@@ -22,18 +22,14 @@ func TestPostgresChecker_Name(t *testing.T) {
 }
 
 func TestPostgresChecker_Check_NilDB(t *testing.T) {
-	// When db.DB() is called on nil, it will panic, so we test with
-	// a properly initialized checker but this is more of an integration test scenario.
-	// For unit testing, we verify the interface and name.
 	checker := NewPostgresChecker(nil)
 
-	// This will panic because we can't call methods on nil *gorm.DB
-	// In real usage, the db is never nil
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic when checking nil db")
-		}
-	}()
+	result := checker.Check(context.Background())
 
-	_ = checker.Check(context.Background())
+	if result.Status != StatusUnhealthy {
+		t.Errorf("expected unhealthy status for nil db, got %s", result.Status)
+	}
+	if result.Error != "database is nil" {
+		t.Errorf("expected 'database is nil' error, got %s", result.Error)
+	}
 }
