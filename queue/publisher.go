@@ -214,6 +214,11 @@ func (p *RabbitMQPublisher) MaxRetries() int {
 	return len(p.retryQueues)
 }
 
+// Connection returns the underlying AMQP connection for health checks
+func (p *RabbitMQPublisher) Connection() *amqp.Connection {
+	return p.conn
+}
+
 // Close closes the channel and connection.
 // Safe to call concurrently with Publish methods - will wait for in-flight publishes to complete.
 // Idempotent: subsequent calls return nil.
