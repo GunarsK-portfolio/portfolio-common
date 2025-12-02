@@ -28,6 +28,7 @@ func (ContactMessage) TableName() string {
 // ContactMessageStatus constants
 const (
 	MessageStatusPending = "pending"
+	MessageStatusQueued  = "queued"
 	MessageStatusSent    = "sent"
 	MessageStatusFailed  = "failed"
 )
