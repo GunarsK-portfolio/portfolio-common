@@ -1,6 +1,6 @@
 module github.com/GunarsK-portfolio/portfolio-common
 
-go 1.25.3
+go 1.25.5
 
 require (
 	github.com/gin-gonic/gin v1.11.0
