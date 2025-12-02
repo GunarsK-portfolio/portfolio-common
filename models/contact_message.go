@@ -46,3 +46,8 @@ type ContactMessageCreate struct {
 func (c *ContactMessageCreate) IsSpam() bool {
 	return strings.TrimSpace(c.Honeypot) != ""
 }
+
+// ContactMessageEvent is the message published to the queue for processing
+type ContactMessageEvent struct {
+	MessageID int64 `json:"messageId"`
+}

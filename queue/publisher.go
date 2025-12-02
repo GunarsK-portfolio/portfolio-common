@@ -22,9 +22,12 @@ var (
 	ErrCloseFailed      = errors.New("failed to close connection")
 )
 
-// Publisher defines the interface for message queue publishing
+// Publisher defines the interface for message queue publishing with retry support
 type Publisher interface {
 	Publish(ctx context.Context, message interface{}) error
+	PublishToRetry(ctx context.Context, retryIndex int, body []byte) error
+	PublishToDLQ(ctx context.Context, body []byte) error
+	MaxRetries() int
 	Close() error
 }
 
@@ -37,9 +40,9 @@ type RabbitMQPublisher struct {
 	retryQueues []string // Names of retry queues in order
 }
 
-// RetryQueues returns the list of retry queue names for use by consumers
+// RetryQueues returns a copy of the retry queue names for use by consumers
 func (p *RabbitMQPublisher) RetryQueues() []string {
-	return p.retryQueues
+	return append([]string(nil), p.retryQueues...)
 }
 
 // DLQName returns the dead letter queue name
@@ -64,7 +67,9 @@ func declareExchangeAndQueue(ch *amqp.Channel, exchange, queue string, queueArgs
 	return nil
 }
 
-// NewRabbitMQPublisher creates a new RabbitMQ publisher with exchange, retry queues, and DLQ
+// NewRabbitMQPublisher creates a new RabbitMQ publisher with exchange, retry queues, and DLQ.
+// Note: This publisher does not handle automatic reconnection. If the connection drops,
+// callers should create a new publisher instance.
 func NewRabbitMQPublisher(cfg config.RabbitMQConfig) (*RabbitMQPublisher, error) {
 	conn, err := amqp.Dial(cfg.URL())
 	if err != nil {
@@ -173,20 +178,21 @@ func (p *RabbitMQPublisher) MaxRetries() int {
 
 // Close closes the channel and connection
 func (p *RabbitMQPublisher) Close() error {
+	var errs []error
+
 	if p.channel != nil {
 		if err := p.channel.Close(); err != nil {
-			return fmt.Errorf("%w: channel: %v", ErrCloseFailed, err)
+			errs = append(errs, fmt.Errorf("channel: %v", err))
 		}
 	}
 	if p.conn != nil {
 		if err := p.conn.Close(); err != nil {
-			return fmt.Errorf("%w: connection: %v", ErrCloseFailed, err)
+			errs = append(errs, fmt.Errorf("connection: %v", err))
 		}
 	}
-	return nil
-}
 
-// ContactMessageEvent is the message published to the queue
-type ContactMessageEvent struct {
-	MessageID int64 `json:"messageId"`
+	if len(errs) > 0 {
+		return fmt.Errorf("%w: %v", ErrCloseFailed, errs)
+	}
+	return nil
 }

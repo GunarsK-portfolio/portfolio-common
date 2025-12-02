@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,7 +13,7 @@ import (
 // RabbitMQConfig holds RabbitMQ connection configuration
 type RabbitMQConfig struct {
 	Host        string          `validate:"required"`
-	Port        string          `validate:"required,number,min=1,max=65535"`
+	Port        int             `validate:"required,min=1,max=65535"`
 	User        string          `validate:"required"`
 	Password    string          `validate:"required"`
 	Exchange    string          `validate:"required"`
@@ -19,9 +21,9 @@ type RabbitMQConfig struct {
 	RetryDelays []time.Duration // Delays for retry queues (e.g., 5s, 30s, 5m, 30m, 2h)
 }
 
-// DefaultRetryDelays provides sensible defaults for retry delays
+// defaultRetryDelays provides sensible defaults for retry delays
 // Designed for email delivery: quick retry for transient issues, longer waits for outages
-var DefaultRetryDelays = []time.Duration{
+var defaultRetryDelays = []time.Duration{
 	1 * time.Minute,  // Transient network issues
 	5 * time.Minute,  // Service temporarily unavailable
 	30 * time.Minute, // Longer outage
@@ -29,11 +31,22 @@ var DefaultRetryDelays = []time.Duration{
 	12 * time.Hour,   // Major outage, last retry before permanent failure
 }
 
-// NewRabbitMQConfig loads RabbitMQ configuration from environment variables
+// DefaultRetryDelays returns a copy of the default retry delays
+func DefaultRetryDelays() []time.Duration {
+	return append([]time.Duration(nil), defaultRetryDelays...)
+}
+
+// NewRabbitMQConfig loads RabbitMQ configuration from environment variables.
+// It panics if required environment variables are missing or configuration is invalid.
 func NewRabbitMQConfig() RabbitMQConfig {
+	port, err := strconv.Atoi(GetEnvRequired("RABBITMQ_PORT"))
+	if err != nil {
+		panic(fmt.Sprintf("Invalid RABBITMQ_PORT: %v", err))
+	}
+
 	cfg := RabbitMQConfig{
 		Host:        GetEnvRequired("RABBITMQ_HOST"),
-		Port:        GetEnvRequired("RABBITMQ_PORT"),
+		Port:        port,
 		User:        GetEnvRequired("RABBITMQ_USER"),
 		Password:    GetEnvRequired("RABBITMQ_PASSWORD"),
 		Exchange:    GetEnv("RABBITMQ_EXCHANGE", "contact_messages"),
@@ -52,7 +65,7 @@ func NewRabbitMQConfig() RabbitMQConfig {
 // parseRetryDelays parses comma-separated duration strings (e.g., "5s,30s,5m,30m,2h")
 func parseRetryDelays(s string) []time.Duration {
 	if s == "" {
-		return DefaultRetryDelays
+		return DefaultRetryDelays()
 	}
 
 	parts := strings.Split(s, ",")
@@ -71,13 +84,19 @@ func parseRetryDelays(s string) []time.Duration {
 	}
 
 	if len(delays) == 0 {
-		return DefaultRetryDelays
+		return DefaultRetryDelays()
 	}
 
 	return delays
 }
 
-// URL returns the AMQP connection URL
+// URL returns the AMQP connection URL with properly encoded credentials
 func (c RabbitMQConfig) URL() string {
-	return fmt.Sprintf("amqp://%s:%s@%s:%s/", c.User, c.Password, c.Host, c.Port)
+	u := &url.URL{
+		Scheme: "amqp",
+		User:   url.UserPassword(c.User, c.Password),
+		Host:   fmt.Sprintf("%s:%d", c.Host, c.Port),
+		Path:   "/",
+	}
+	return u.String()
 }

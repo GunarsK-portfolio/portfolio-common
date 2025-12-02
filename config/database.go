@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -9,18 +10,24 @@ import (
 // DatabaseConfig holds PostgreSQL database configuration
 type DatabaseConfig struct {
 	Host     string `validate:"required"`
-	Port     string `validate:"required,number,min=1,max=65535"`
+	Port     int    `validate:"required,min=1,max=65535"`
 	User     string `validate:"required"`
 	Password string `validate:"required"`
 	Name     string `validate:"required"`
 	SSLMode  string `validate:"omitempty,oneof=disable allow prefer require verify-ca verify-full"` // optional, defaults to "disable" for local, set to "require" for AWS RDS
 }
 
-// NewDatabaseConfig loads database configuration from environment variables
+// NewDatabaseConfig loads database configuration from environment variables.
+// It panics if required environment variables are missing or configuration is invalid.
 func NewDatabaseConfig() DatabaseConfig {
+	port, err := strconv.Atoi(GetEnvRequired("DB_PORT"))
+	if err != nil {
+		panic(fmt.Sprintf("Invalid DB_PORT: %v", err))
+	}
+
 	cfg := DatabaseConfig{
 		Host:     GetEnvRequired("DB_HOST"),
-		Port:     GetEnvRequired("DB_PORT"),
+		Port:     port,
 		User:     GetEnvRequired("DB_USER"),
 		Password: GetEnvRequired("DB_PASSWORD"),
 		Name:     GetEnvRequired("DB_NAME"),
