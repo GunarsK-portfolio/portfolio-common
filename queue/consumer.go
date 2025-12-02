@@ -18,6 +18,7 @@ const RetryCountHeader = "x-retry-count"
 var (
 	ErrConsumerClosed     = errors.New("consumer is closed")
 	ErrConsumeSetupFailed = errors.New("failed to setup consumer")
+	ErrNilPublisher       = errors.New("publisher is required")
 )
 
 // MessageHandler processes a single message delivery.
@@ -50,6 +51,10 @@ func NewRabbitMQConsumer(
 	publisher *RabbitMQPublisher,
 	logger *slog.Logger,
 ) (*RabbitMQConsumer, error) {
+	if publisher == nil {
+		return nil, ErrNilPublisher
+	}
+
 	conn, err := amqp.Dial(cfg.URL())
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrConnectionFailed, err)
@@ -153,22 +158,32 @@ func (c *RabbitMQConsumer) processDelivery(ctx context.Context, delivery amqp.De
 
 	maxRetries := c.publisher.MaxRetries()
 	if retryCount < maxRetries {
-		// ACK and republish to retry queue
-		if ackErr := delivery.Ack(false); ackErr != nil {
-			c.logger.Error("Failed to ACK before retry", "error", ackErr)
+		// Try to republish to retry queue first (before ACK)
+		if pubErr := c.publishToRetryWithCount(ctx, retryCount, delivery); pubErr != nil {
+			// Publish failed - NACK to requeue for redelivery
+			c.logger.Error("Failed to publish to retry queue, requeueing",
+				"error", pubErr,
+				"retryIndex", retryCount,
+				"messageId", delivery.MessageId,
+			)
+			if nackErr := delivery.Nack(false, true); nackErr != nil {
+				c.logger.Error("Failed to NACK message for requeue", "error", nackErr)
+			}
 			return
 		}
 
-		// Republish with incremented retry count
-		if pubErr := c.publishToRetryWithCount(ctx, retryCount, delivery); pubErr != nil {
-			c.logger.Error("Failed to publish to retry queue", "error", pubErr, "retryIndex", retryCount)
-		} else {
-			c.logger.Info("Message queued for retry",
-				"messageId", delivery.MessageId,
-				"retryIndex", retryCount,
-				"nextRetryIndex", retryCount,
-			)
+		// Publish succeeded - now ACK the original
+		if ackErr := delivery.Ack(false); ackErr != nil {
+			c.logger.Error("Failed to ACK after retry publish", "error", ackErr)
+			// Message is in retry queue, duplicate may occur on redelivery
+			return
 		}
+
+		c.logger.Info("Message queued for retry",
+			"messageId", delivery.MessageId,
+			"retryIndex", retryCount,
+			"nextRetryCount", retryCount+1,
+		)
 	} else {
 		// Max retries exhausted - NACK to DLQ
 		c.logger.Error("Max retries exhausted, sending to DLQ",
@@ -188,7 +203,10 @@ func (c *RabbitMQConsumer) publishToRetryWithCount(ctx context.Context, currentR
 	for k, v := range delivery.Headers {
 		headers[k] = v
 	}
-	headers[RetryCountHeader] = int32(currentRetry + 1)
+
+	// Safe conversion: retry count is bounded by MaxRetries (typically < 10)
+	nextRetry := currentRetry + 1
+	headers[RetryCountHeader] = int32(nextRetry) //nolint:gosec // bounded by MaxRetries check
 
 	// Use publisher's channel for retry publish
 	return c.publisher.PublishToRetry(ctx, currentRetry, delivery.Body, delivery.CorrelationId, headers)

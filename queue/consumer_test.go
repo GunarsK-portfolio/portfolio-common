@@ -106,6 +106,11 @@ func TestConsumerErrorDefinitions(t *testing.T) {
 			err:     ErrConsumeSetupFailed,
 			wantMsg: "failed to setup consumer",
 		},
+		{
+			name:    "ErrNilPublisher",
+			err:     ErrNilPublisher,
+			wantMsg: "publisher is required",
+		},
 	}
 
 	for _, tt := range tests {
