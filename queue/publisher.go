@@ -20,6 +20,7 @@ var (
 	ErrQueueSetupFailed = errors.New("failed to setup queue infrastructure")
 	ErrMarshalFailed    = errors.New("failed to marshal message")
 	ErrPublishFailed    = errors.New("failed to publish message")
+	ErrPublisherClosed  = errors.New("publisher is closed")
 	ErrRetryOutOfBounds = errors.New("retry index out of bounds")
 	ErrCloseFailed      = errors.New("failed to close connection")
 )
@@ -37,6 +38,7 @@ type Publisher interface {
 // All publish methods are safe for concurrent use.
 type RabbitMQPublisher struct {
 	mu          sync.Mutex
+	closed      bool
 	conn        *amqp.Connection
 	channel     *amqp.Channel
 	exchange    string
@@ -52,6 +54,11 @@ func (p *RabbitMQPublisher) RetryQueues() []string {
 // DLQName returns the dead letter queue name
 func (p *RabbitMQPublisher) DLQName() string {
 	return p.queue + "_dlq"
+}
+
+// DLXName returns the dead letter exchange name
+func (p *RabbitMQPublisher) DLXName() string {
+	return p.exchange + "_dlx"
 }
 
 // declareExchangeAndQueue declares an exchange, queue, and binds them together
@@ -151,6 +158,10 @@ func (p *RabbitMQPublisher) publish(ctx context.Context, exchange, routingKey st
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	if p.closed {
+		return fmt.Errorf("%w", ErrPublisherClosed)
+	}
+
 	err := p.channel.PublishWithContext(ctx, exchange, routingKey, false, false,
 		amqp.Publishing{
 			DeliveryMode:  amqp.Persistent,
@@ -195,7 +206,7 @@ func (p *RabbitMQPublisher) PublishToRetry(ctx context.Context, retryIndex int, 
 // PublishToDLQ sends a message to the dead letter queue (permanent failure).
 // The correlationId should be preserved from the original message for tracing.
 func (p *RabbitMQPublisher) PublishToDLQ(ctx context.Context, body []byte, correlationId string) error {
-	return p.publish(ctx, p.exchange+"_dlx", p.DLQName(), body, correlationId)
+	return p.publish(ctx, p.DLXName(), p.DLQName(), body, correlationId)
 }
 
 // MaxRetries returns the number of retry queues (attempts before DLQ)
@@ -205,9 +216,15 @@ func (p *RabbitMQPublisher) MaxRetries() int {
 
 // Close closes the channel and connection.
 // Safe to call concurrently with Publish methods - will wait for in-flight publishes to complete.
+// Idempotent: subsequent calls return nil.
 func (p *RabbitMQPublisher) Close() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	if p.closed {
+		return nil
+	}
+	p.closed = true
 
 	var errs []error
 
@@ -223,7 +240,7 @@ func (p *RabbitMQPublisher) Close() error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("%w: %v", ErrCloseFailed, errs)
+		return fmt.Errorf("%w: %w", ErrCloseFailed, errors.Join(errs...))
 	}
 	return nil
 }
