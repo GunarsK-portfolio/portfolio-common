@@ -45,6 +45,17 @@ func TestRabbitMQConfig_URL(t *testing.T) {
 			},
 			want: "amqp://user:pass@192.168.1.100:15672/",
 		},
+		{
+			name: "TLS enabled uses amqps scheme",
+			cfg: RabbitMQConfig{
+				Host:     "b-xxx.mq.eu-west-1.on.aws",
+				Port:     5671,
+				User:     "rabbitmq",
+				Password: "secret123",
+				TLS:      true,
+			},
+			want: "amqps://rabbitmq:secret123@b-xxx.mq.eu-west-1.on.aws:5671/",
+		},
 	}
 
 	for _, tt := range tests {
