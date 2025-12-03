@@ -12,12 +12,13 @@ import (
 
 // RabbitMQConfig holds RabbitMQ connection configuration
 type RabbitMQConfig struct {
-	Host        string          `validate:"required"`
-	Port        int             `validate:"required,min=1,max=65535"`
-	User        string          `validate:"required"`
-	Password    string          `validate:"required"`
-	Exchange    string          `validate:"required"`
-	Queue       string          `validate:"required"`
+	Host        string `validate:"required"`
+	Port        int    `validate:"required,min=1,max=65535"`
+	User        string `validate:"required"`
+	Password    string `validate:"required"`
+	Exchange    string `validate:"required"`
+	Queue       string `validate:"required"`
+	TLS         bool
 	RetryDelays []time.Duration // Delays for retry queues (e.g., 5s, 30s, 5m, 30m, 2h)
 
 	// Consumer-specific settings (optional, only used by consumers)
@@ -55,6 +56,7 @@ func NewRabbitMQConfig() RabbitMQConfig {
 		Password:      GetEnvRequired("RABBITMQ_PASSWORD"),
 		Exchange:      GetEnv("RABBITMQ_EXCHANGE", "contact_messages"),
 		Queue:         GetEnv("RABBITMQ_QUEUE", "contact_messages"),
+		TLS:           GetEnvBool("RABBITMQ_TLS", false),
 		RetryDelays:   parseRetryDelays(GetEnv("RABBITMQ_RETRY_DELAYS", "")),
 		PrefetchCount: GetEnvInt("RABBITMQ_PREFETCH_COUNT", 1),
 		ConsumerTag:   GetEnv("RABBITMQ_CONSUMER_TAG", ""),
@@ -99,10 +101,15 @@ func parseRetryDelays(s string) []time.Duration {
 	return delays
 }
 
-// URL returns the AMQP connection URL with properly encoded credentials
+// URL returns the AMQP connection URL with properly encoded credentials.
+// Uses amqps:// scheme when TLS is enabled, amqp:// otherwise.
 func (c RabbitMQConfig) URL() string {
+	scheme := "amqp"
+	if c.TLS {
+		scheme = "amqps"
+	}
 	u := &url.URL{
-		Scheme: "amqp",
+		Scheme: scheme,
 		User:   url.UserPassword(c.User, c.Password),
 		Host:   fmt.Sprintf("%s:%d", c.Host, c.Port),
 		Path:   "/",

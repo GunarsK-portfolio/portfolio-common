@@ -79,6 +79,7 @@ cfg := config.RabbitMQConfig{
     Port:        5672,
     User:        "guest",
     Password:    "guest",
+    TLS:         false,            // Set to true for amqps:// (Amazon MQ, production)
     Exchange:    "messaging",
     Queue:       "contact_messages",
     RetryDelays: []time.Duration{1*time.Minute, 5*time.Minute, 30*time.Minute},
@@ -97,6 +98,7 @@ cfg := config.RabbitMQConfig{
 | `RABBITMQ_PORT` | Yes | - | RabbitMQ port |
 | `RABBITMQ_USER` | Yes | - | Username |
 | `RABBITMQ_PASSWORD` | Yes | - | Password |
+| `RABBITMQ_TLS` | No | `false` | Use TLS (amqps://) connection |
 | `RABBITMQ_EXCHANGE` | No | `contact_messages` | Exchange name |
 | `RABBITMQ_QUEUE` | No | `contact_messages` | Queue name |
 | `RABBITMQ_RETRY_DELAYS` | No | `1m,5m,30m,2h,12h` | Comma-separated durations |
