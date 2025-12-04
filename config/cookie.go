@@ -2,6 +2,7 @@ package config
 
 import (
 	"net/http"
+	"strings"
 )
 
 // CookieConfig holds cookie configuration for authentication.
@@ -14,13 +15,15 @@ type CookieConfig struct {
 
 // NewCookieConfig loads cookie configuration from environment variables.
 func NewCookieConfig() CookieConfig {
-	sameSiteStr := GetEnv("COOKIE_SAMESITE", "Lax")
+	sameSiteStr := strings.ToLower(GetEnv("COOKIE_SAMESITE", "Lax"))
 	var sameSite http.SameSite
 	switch sameSiteStr {
-	case "Strict":
+	case "strict":
 		sameSite = http.SameSiteStrictMode
-	case "None":
+	case "none":
 		sameSite = http.SameSiteNoneMode
+	case "lax", "":
+		sameSite = http.SameSiteLaxMode
 	default:
 		sameSite = http.SameSiteLaxMode
 	}
