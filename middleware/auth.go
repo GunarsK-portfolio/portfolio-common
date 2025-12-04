@@ -80,6 +80,12 @@ func (m *AuthMiddleware) AddTTLHeader() gin.HandlerFunc {
 }
 
 func extractToken(c *gin.Context) string {
+	// Try cookie first (browser requests)
+	if cookie, err := c.Cookie("access_token"); err == nil && cookie != "" {
+		return cookie
+	}
+
+	// Fallback to Authorization header (service-to-service calls)
 	bearerToken := c.GetHeader("Authorization")
 	parts := strings.Split(bearerToken, " ")
 	if len(parts) == 2 && parts[0] == "Bearer" {

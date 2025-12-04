@@ -20,6 +20,16 @@ protected.Use(authMiddleware.ValidateToken())
 protected.Use(authMiddleware.AddTTLHeader())
 ```
 
+### Token Extraction
+
+The middleware extracts JWT tokens in the following order:
+
+1. **Cookie** (httpOnly `access_token` cookie) - for browser requests
+2. **Authorization header** (`Bearer <token>`) - for service-to-service calls
+
+This allows secure httpOnly cookie authentication for browsers while maintaining
+backwards compatibility with Authorization header for API clients.
+
 After validation, access user info in handlers:
 
 ```go
