@@ -32,7 +32,7 @@ go test -v ./health/
 **`jwt/jwt_test.go`** - 35 tests
 
 | Category | Tests | Coverage |
-|----------|-------|----------|
+| -------- | ----- | -------- |
 | Constructor | 7 | NewService, NewValidatorOnly, validation |
 | Token Generation | 12 | Access tokens, refresh tokens, claims |
 | Token Validation | 11 | Valid, expired, tampered, malformed |
@@ -42,7 +42,7 @@ go test -v ./health/
 **`health/health_test.go`** - 15 tests
 
 | Category | Tests | Coverage |
-|----------|-------|----------|
+| -------- | ----- | -------- |
 | Aggregator | 6 | Constructor, Register, nil guard, no checkers, timeout |
 | Health Status | 4 | Healthy, unhealthy, degraded, priority |
 | Timeout | 1 | Context cancellation |
@@ -52,35 +52,35 @@ go test -v ./health/
 **`health/postgres_test.go`** - 3 tests
 
 | Category | Tests | Coverage |
-|----------|-------|----------|
+| -------- | ----- | -------- |
 | Constructor | 2 | NewPostgresChecker, Name |
 | Error Handling | 1 | Nil database |
 
 **`health/rabbitmq_test.go`** - 3 tests
 
 | Category | Tests | Coverage |
-|----------|-------|----------|
+| -------- | ----- | -------- |
 | Constructor | 2 | NewRabbitMQChecker, Name |
 | Error Handling | 1 | Nil connection |
 
 **`health/redis_test.go`** - 3 tests
 
 | Category | Tests | Coverage |
-|----------|-------|----------|
+| -------- | ----- | -------- |
 | Constructor | 2 | NewRedisChecker, Name |
 | Error Handling | 1 | Nil client |
 
 **`health/minio_test.go`** - 4 tests
 
 | Category | Tests | Coverage |
-|----------|-------|----------|
+| -------- | ----- | -------- |
 | Constructor | 2 | NewMinIOChecker, Name |
 | Error Handling | 2 | Nil client with/without bucket |
 
 **`queue/publisher_test.go`** - 10 tests
 
 | Category | Tests | Coverage |
-|----------|-------|----------|
+| -------- | ----- | -------- |
 | Helper Methods | 5 | RetryQueues, DLQName, DLXName, MaxRetries |
 | Error Definitions | 1 | All publisher errors |
 | Validation | 1 | PublishToRetry bounds checking |
@@ -90,7 +90,7 @@ go test -v ./health/
 **`queue/consumer_test.go`** - 6 tests
 
 | Category | Tests | Coverage |
-|----------|-------|----------|
+| -------- | ----- | -------- |
 | GetRetryCount | 1 | Header parsing (9 sub-tests) |
 | Constants | 1 | RetryCountHeader value |
 | Error Definitions | 1 | All consumer errors |
@@ -100,7 +100,7 @@ go test -v ./health/
 **`config/rabbitmq_test.go`** - 8 tests
 
 | Category | Tests | Coverage |
-|----------|-------|----------|
+| -------- | ----- | -------- |
 | URL | 1 | URL generation with credentials |
 | RetryDelays | 3 | Defaults, parsing, panic cases |
 | Consumer Settings | 2 | PrefetchCount, ConsumerTag fields |

@@ -15,7 +15,7 @@ Shared Go package for common code across portfolio microservices.
 ## Packages
 
 | Package | Description |
-|---------|-------------|
+| ------- | ----------- |
 | [config](config/) | Configuration management and environment helpers |
 | [database](database/) | PostgreSQL connection with GORM |
 | [jwt](jwt/) | Local JWT validation and generation |

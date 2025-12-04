@@ -93,7 +93,7 @@ cfg := config.RabbitMQConfig{
 ## Environment Variables
 
 | Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
+| -------- | -------- | ------- | ----------- |
 | `RABBITMQ_HOST` | Yes | - | RabbitMQ hostname |
 | `RABBITMQ_PORT` | Yes | - | RabbitMQ port |
 | `RABBITMQ_USER` | Yes | - | Username |
