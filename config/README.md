@@ -28,6 +28,7 @@ intVal := config.GetEnvInt("PORT", 8080)
 - `RedisConfig` - Redis connection settings
 - `S3Config` - MinIO/S3 storage settings
 - `RabbitMQConfig` - RabbitMQ connection and queue settings
+- `CookieConfig` - httpOnly cookie settings for authentication
 
 ## Environment Variables
 
@@ -41,3 +42,10 @@ intVal := config.GetEnvInt("PORT", 8080)
 
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` - Required
 - `DB_SSLMODE` - Optional (disable, require, verify-ca, verify-full)
+
+### CookieConfig
+
+- `COOKIE_DOMAIN` - Cookie domain (e.g., ".example.com" for prod, "" for local)
+- `COOKIE_SECURE` - true for HTTPS only (default: false)
+- `COOKIE_SAMESITE` - Strict, Lax, or None (default: Lax)
+- `COOKIE_PATH` - Cookie path (default: "/")
