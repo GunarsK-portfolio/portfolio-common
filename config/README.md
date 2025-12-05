@@ -48,4 +48,7 @@ intVal := config.GetEnvInt("PORT", 8080)
 - `COOKIE_DOMAIN` - Cookie domain (e.g., ".example.com" for prod, "" for local)
 - `COOKIE_SECURE` - true for HTTPS only (default: false)
 - `COOKIE_SAMESITE` - Strict, Lax, or None (default: Lax)
-- `COOKIE_PATH` - Cookie path (default: "/")
+- `COOKIE_PATH` - Access token cookie path (default: "/")
+- `COOKIE_REFRESH_PATH` - Refresh token cookie path (default: "/"). Must match
+  the refresh endpoint URL as seen by the browser (e.g., "/auth/v1/refresh" for
+  dev, "/api/v1/auth/refresh" for prod)

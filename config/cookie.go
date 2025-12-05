@@ -7,10 +7,11 @@ import (
 
 // CookieConfig holds cookie configuration for authentication.
 type CookieConfig struct {
-	Domain   string // Cookie domain (e.g., ".gunarsk.com" for prod, "" for local)
-	Secure   bool   // true for HTTPS only
-	SameSite http.SameSite
-	Path     string
+	Domain      string // Cookie domain (e.g., ".gunarsk.com" for prod, "" for local)
+	Secure      bool   // true for HTTPS only
+	SameSite    http.SameSite
+	Path        string // Path for access token cookie (typically "/")
+	RefreshPath string // Path for refresh token cookie (must match refresh endpoint URL as seen by browser)
 }
 
 // NewCookieConfig loads cookie configuration from environment variables.
@@ -29,9 +30,10 @@ func NewCookieConfig() CookieConfig {
 	}
 
 	return CookieConfig{
-		Domain:   GetEnv("COOKIE_DOMAIN", ""),
-		Secure:   GetEnvBool("COOKIE_SECURE", false),
-		SameSite: sameSite,
-		Path:     GetEnv("COOKIE_PATH", "/"),
+		Domain:      GetEnv("COOKIE_DOMAIN", ""),
+		Secure:      GetEnvBool("COOKIE_SECURE", false),
+		SameSite:    sameSite,
+		Path:        GetEnv("COOKIE_PATH", "/"),
+		RefreshPath: GetEnv("COOKIE_REFRESH_PATH", "/"),
 	}
 }
