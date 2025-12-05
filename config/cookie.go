@@ -29,11 +29,16 @@ func NewCookieConfig() CookieConfig {
 		sameSite = http.SameSiteLaxMode
 	}
 
+	refreshPath := GetEnv("COOKIE_REFRESH_PATH", "/")
+	if refreshPath == "" || !strings.HasPrefix(refreshPath, "/") {
+		refreshPath = "/"
+	}
+
 	return CookieConfig{
 		Domain:      GetEnv("COOKIE_DOMAIN", ""),
 		Secure:      GetEnvBool("COOKIE_SECURE", false),
 		SameSite:    sameSite,
 		Path:        GetEnv("COOKIE_PATH", "/"),
-		RefreshPath: GetEnv("COOKIE_REFRESH_PATH", "/"),
+		RefreshPath: refreshPath,
 	}
 }
