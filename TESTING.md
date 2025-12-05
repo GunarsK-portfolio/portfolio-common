@@ -29,13 +29,14 @@ go test -v ./health/
 
 ## Test Files
 
-**`jwt/jwt_test.go`** - 35 tests
+**`jwt/jwt_test.go`** - 50+ tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
 | Constructor | 7 | NewService, NewValidatorOnly, validation |
 | Token Generation | 12 | Access tokens, refresh tokens, claims |
 | Token Validation | 11 | Valid, expired, tampered, malformed |
+| Scopes | 15+ | Token with scopes, nil/empty scopes, validation |
 | Expiry Handling | 5 | TTL, boundary conditions |
 | Concurrency | 2 | Thread-safety verification |
 
@@ -104,6 +105,14 @@ go test -v ./health/
 | URL | 1 | URL generation with credentials |
 | RetryDelays | 3 | Defaults, parsing, panic cases |
 | Consumer Settings | 2 | PrefetchCount, ConsumerTag fields |
+
+**`middleware/permission_test.go`** - 12 tests
+
+| Category | Tests | Coverage |
+| -------- | ----- | -------- |
+| HasPermission | 11 | Hierarchical levels (none/read/edit/delete) |
+| RequirePermission | 9 | No scopes, invalid format, all permission levels |
+| Response Details | 1 | Forbidden response includes resource/required/have |
 
 ## Key Testing Patterns
 

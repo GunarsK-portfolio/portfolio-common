@@ -102,12 +102,13 @@ func TestValidatorOnlyCannotGenerateTokens(t *testing.T) {
 		t.Fatalf("NewValidatorOnly() error = %v", err)
 	}
 
-	_, err = svc.GenerateAccessToken(123, "user")
+	scopes := map[string]string{"profile": "read"}
+	_, err = svc.GenerateAccessToken(123, "user", scopes)
 	if err != ErrTokenGenDisabled {
 		t.Errorf("GenerateAccessToken() error = %v, want %v", err, ErrTokenGenDisabled)
 	}
 
-	_, err = svc.GenerateRefreshToken(123, "user")
+	_, err = svc.GenerateRefreshToken(123, "user", scopes)
 	if err != ErrTokenGenDisabled {
 		t.Errorf("GenerateRefreshToken() error = %v, want %v", err, ErrTokenGenDisabled)
 	}
@@ -175,7 +176,8 @@ func TestGenerateAccessToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			token, err := svc.GenerateAccessToken(tt.userID, tt.username)
+			scopes := map[string]string{"profile": "read", "projects": "edit"}
+			token, err := svc.GenerateAccessToken(tt.userID, tt.username, scopes)
 
 			if err != tt.wantErr {
 				t.Errorf("GenerateAccessToken() error = %v, wantErr %v", err, tt.wantErr)
@@ -207,8 +209,9 @@ func TestGenerateAccessToken_VeryLargeUserID(t *testing.T) {
 	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
 
 	largeID := int64(9223372036854775807) // Max int64
+	scopes := map[string]string{"profile": "read"}
 
-	token, err := svc.GenerateAccessToken(largeID, "testuser")
+	token, err := svc.GenerateAccessToken(largeID, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -254,7 +257,8 @@ func TestGenerateAccessToken_SpecialCharactersInUsername(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			token, err := svc.GenerateAccessToken(1, tt.username)
+			scopes := map[string]string{"profile": "read"}
+			token, err := svc.GenerateAccessToken(1, tt.username, scopes)
 			if err != nil {
 				t.Fatalf("GenerateAccessToken() error = %v", err)
 			}
@@ -274,8 +278,9 @@ func TestGenerateAccessToken_SpecialCharactersInUsername(t *testing.T) {
 func TestGenerateAccessToken_TokensAreDifferent(t *testing.T) {
 	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
 
+	scopes := map[string]string{"profile": "read"}
 	// Generate multiple tokens for same user
-	token1, err := svc.GenerateAccessToken(1, "testuser")
+	token1, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -283,7 +288,7 @@ func TestGenerateAccessToken_TokensAreDifferent(t *testing.T) {
 	// Sleep to ensure different IssuedAt timestamp (JWT timestamps are in seconds)
 	time.Sleep(1001 * time.Millisecond)
 
-	token2, err := svc.GenerateAccessToken(1, "testuser")
+	token2, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -316,9 +321,10 @@ func TestGenerateAccessToken_ClaimsStructure(t *testing.T) {
 
 	userID := int64(42)
 	username := "testuser"
+	scopes := map[string]string{"profile": "read", "projects": "edit"}
 	beforeGeneration := time.Now()
 
-	token, err := svc.GenerateAccessToken(userID, username)
+	token, err := svc.GenerateAccessToken(userID, username, scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -364,8 +370,9 @@ func TestGenerateAccessToken_ClaimsStructure(t *testing.T) {
 func TestGenerateAccessToken_SigningMethod(t *testing.T) {
 	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
 
+	scopes := map[string]string{"profile": "read"}
 	// Generate valid token
-	validToken, err := svc.GenerateAccessToken(1, "testuser")
+	validToken, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -387,6 +394,63 @@ func TestGenerateAccessToken_SigningMethod(t *testing.T) {
 	}
 }
 
+func TestGenerateAccessToken_WithScopes(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	tests := []struct {
+		name   string
+		scopes map[string]string
+	}{
+		{
+			name:   "with scopes",
+			scopes: map[string]string{"profile": "read", "projects": "edit", "users": "delete"},
+		},
+		{
+			name:   "empty scopes",
+			scopes: map[string]string{},
+		},
+		{
+			name:   "nil scopes",
+			scopes: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token, err := svc.GenerateAccessToken(1, "testuser", tt.scopes)
+			if err != nil {
+				t.Fatalf("GenerateAccessToken() error = %v", err)
+			}
+
+			claims, err := svc.ValidateToken(token)
+			if err != nil {
+				t.Fatalf("ValidateToken() error = %v", err)
+			}
+
+			// Verify scopes are correctly stored
+			if tt.scopes == nil {
+				if claims.Scopes != nil {
+					t.Errorf("Claims.Scopes = %v, want nil", claims.Scopes)
+				}
+			} else if len(tt.scopes) == 0 {
+				// Empty map might be nil or empty after JSON round trip
+				if len(claims.Scopes) != 0 {
+					t.Errorf("Claims.Scopes = %v, want empty or nil", claims.Scopes)
+				}
+			} else {
+				if len(claims.Scopes) != len(tt.scopes) {
+					t.Errorf("Claims.Scopes length = %d, want %d", len(claims.Scopes), len(tt.scopes))
+				}
+				for resource, level := range tt.scopes {
+					if claims.Scopes[resource] != level {
+						t.Errorf("Claims.Scopes[%s] = %v, want %v", resource, claims.Scopes[resource], level)
+					}
+				}
+			}
+		})
+	}
+}
+
 // =============================================================================
 // GenerateRefreshToken Tests
 // =============================================================================
@@ -396,8 +460,9 @@ func TestGenerateRefreshToken(t *testing.T) {
 
 	userID := int64(123)
 	username := "testuser"
+	scopes := map[string]string{"profile": "read"}
 
-	token, err := svc.GenerateRefreshToken(userID, username)
+	token, err := svc.GenerateRefreshToken(userID, username, scopes)
 	if err != nil {
 		t.Fatalf("GenerateRefreshToken() error = %v", err)
 	}
@@ -455,7 +520,8 @@ func TestGenerateRefreshToken_InputValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := svc.GenerateRefreshToken(tt.userID, tt.username)
+			scopes := map[string]string{"profile": "read"}
+			_, err := svc.GenerateRefreshToken(tt.userID, tt.username, scopes)
 			if err != tt.wantErr {
 				t.Errorf("GenerateRefreshToken() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -472,8 +538,9 @@ func TestValidateToken_ValidToken(t *testing.T) {
 
 	userID := int64(1)
 	username := "testuser"
+	scopes := map[string]string{"profile": "read"}
 
-	token, err := svc.GenerateAccessToken(userID, username)
+	token, err := svc.GenerateAccessToken(userID, username, scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -499,7 +566,8 @@ func TestValidateToken_ExpiredToken(t *testing.T) {
 	shortExpiry := 1 * time.Millisecond
 	svc, _ := NewService(testSecret, shortExpiry, testRefreshExpiry)
 
-	token, err := svc.GenerateAccessToken(1, "testuser")
+	scopes := map[string]string{"profile": "read"}
+	token, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -517,8 +585,9 @@ func TestValidateToken_InvalidSignature(t *testing.T) {
 	svc1, _ := NewService("secret1-at-least-32-chars-long-11111", testAccessExpiry, testRefreshExpiry)
 	svc2, _ := NewService("secret2-at-least-32-chars-long-22222", testAccessExpiry, testRefreshExpiry)
 
+	scopes := map[string]string{"profile": "read"}
 	// Generate token with svc1
-	token, err := svc1.GenerateAccessToken(1, "testuser")
+	token, err := svc1.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -572,7 +641,8 @@ func TestValidateToken_MalformedToken(t *testing.T) {
 func TestValidateToken_TamperedToken(t *testing.T) {
 	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
 
-	token, err := svc.GenerateAccessToken(1, "testuser")
+	scopes := map[string]string{"profile": "read"}
+	token, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -622,8 +692,9 @@ func TestValidateToken_WrongSigningMethodNone(t *testing.T) {
 func TestValidateToken_InvalidClaimsStructure(t *testing.T) {
 	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
 
+	scopes := map[string]string{"profile": "read"}
 	// Generate a valid token
-	validToken, err := svc.GenerateAccessToken(1, "testuser")
+	validToken, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -650,7 +721,8 @@ func TestValidateToken_ExpiryBoundary(t *testing.T) {
 	shortExpiry := 3 * time.Second
 	svc, _ := NewService(testSecret, shortExpiry, testRefreshExpiry)
 
-	token, err := svc.GenerateAccessToken(1, "testuser")
+	scopes := map[string]string{"profile": "read"}
+	token, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -689,7 +761,8 @@ func TestValidateToken_ExpiryBoundary(t *testing.T) {
 func TestValidateToken_RemainingTime(t *testing.T) {
 	svc, _ := NewService(testSecret, 10*time.Second, testRefreshExpiry)
 
-	token, err := svc.GenerateAccessToken(1, "testuser")
+	scopes := map[string]string{"profile": "read"}
+	token, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -745,7 +818,8 @@ func TestGetExpiryMethods(t *testing.T) {
 func TestAccessTokenExpiry(t *testing.T) {
 	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
 
-	token, err := svc.GenerateAccessToken(1, "testuser")
+	scopes := map[string]string{"profile": "read"}
+	token, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -769,7 +843,8 @@ func TestAccessTokenExpiry(t *testing.T) {
 func TestRefreshTokenExpiry(t *testing.T) {
 	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
 
-	token, err := svc.GenerateRefreshToken(1, "testuser")
+	scopes := map[string]string{"profile": "read"}
+	token, err := svc.GenerateRefreshToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateRefreshToken() error = %v", err)
 	}
@@ -790,7 +865,7 @@ func TestRefreshTokenExpiry(t *testing.T) {
 	}
 
 	// Refresh token should expire much later than access token
-	accessToken, err := svc.GenerateAccessToken(1, "testuser")
+	accessToken, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -808,7 +883,8 @@ func TestRefreshTokenExpiry(t *testing.T) {
 func TestVeryShortExpiry(t *testing.T) {
 	svc, _ := NewService(testSecret, 1*time.Nanosecond, testRefreshExpiry)
 
-	token, err := svc.GenerateAccessToken(1, "testuser")
+	scopes := map[string]string{"profile": "read"}
+	token, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -826,7 +902,8 @@ func TestVeryLongExpiry(t *testing.T) {
 	longExpiry := 8760 * time.Hour // 1 year
 	svc, _ := NewService(testSecret, longExpiry, testRefreshExpiry)
 
-	token, err := svc.GenerateAccessToken(1, "testuser")
+	scopes := map[string]string{"profile": "read"}
+	token, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
@@ -906,7 +983,8 @@ func TestConcurrentTokenGeneration(t *testing.T) {
 	// Generate tokens concurrently
 	for i := range concurrency {
 		go func(userID int64) {
-			token, err := svc.GenerateAccessToken(userID, "testuser")
+			scopes := map[string]string{"profile": "read"}
+			token, err := svc.GenerateAccessToken(userID, "testuser", scopes)
 			if err != nil {
 				t.Errorf("GenerateAccessToken() error = %v", err)
 			}
@@ -953,8 +1031,9 @@ func TestConcurrentTokenGeneration(t *testing.T) {
 func TestConcurrentTokenValidation(t *testing.T) {
 	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
 
+	scopes := map[string]string{"profile": "read"}
 	// Generate a single token
-	token, err := svc.GenerateAccessToken(1, "testuser")
+	token, err := svc.GenerateAccessToken(1, "testuser", scopes)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken() error = %v", err)
 	}
