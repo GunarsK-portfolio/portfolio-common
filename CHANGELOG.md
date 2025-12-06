@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.34.0
+
+**BREAKING**: JWT token generation methods now require a `scopes` parameter.
+
+```go
+// Before (v0.33.0)
+token, err := jwtService.GenerateAccessToken(userID, username)
+refreshToken, err := jwtService.GenerateRefreshToken(userID, username)
+
+// After (v0.34.0)
+scopes := map[string]string{"profile": "read", "projects": "edit"}
+token, err := jwtService.GenerateAccessToken(userID, username, scopes)
+refreshToken, err := jwtService.GenerateRefreshToken(userID, username, scopes)
+
+// For nil scopes (no permissions)
+token, err := jwtService.GenerateAccessToken(userID, username, nil)
+```
+
+- `GenerateAccessToken(userID, username)` now requires third `scopes` param
+- `GenerateRefreshToken(userID, username)` now requires third `scopes` param
+- Add `Scopes` field to JWT `Claims` struct
+- Add `middleware/permission.go` with `RequirePermission()` middleware
+- Add permission level constants: `LevelNone`, `LevelRead`, `LevelEdit`, `LevelDelete`
+- Auth middleware now extracts scopes from JWT into Gin context
+
 ## v0.33.0
 
 - Add `health` package for dependency health checking

@@ -59,6 +59,7 @@ func (m *AuthMiddleware) ValidateToken() gin.HandlerFunc {
 		c.Set("token_ttl", ttl)
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
+		c.Set("scopes", claims.Scopes)
 
 		c.Next()
 	}
