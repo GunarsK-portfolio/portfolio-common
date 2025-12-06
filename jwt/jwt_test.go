@@ -413,6 +413,10 @@ func TestGenerateAccessToken_WithScopes(t *testing.T) {
 			name:   "nil scopes",
 			scopes: nil,
 		},
+		{
+			name:   "scopes with special characters",
+			scopes: map[string]string{"user:profile": "read", "admin/settings": "edit", "key-with-dash": "delete"},
+		},
 	}
 
 	for _, tt := range tests {

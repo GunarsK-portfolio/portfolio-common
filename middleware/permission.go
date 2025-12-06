@@ -6,21 +6,43 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Permission levels (hierarchical)
+// Permission level constants for type-safe usage
+const (
+	LevelNone   = "none"
+	LevelRead   = "read"
+	LevelEdit   = "edit"
+	LevelDelete = "delete"
+)
+
+// Permission levels (hierarchical): none(0) < read(1) < edit(2) < delete(3)
 var levelValues = map[string]int{
-	"none":   0,
-	"read":   1,
-	"edit":   2,
-	"delete": 3,
+	LevelNone:   0,
+	LevelRead:   1,
+	LevelEdit:   2,
+	LevelDelete: 3,
 }
 
-// HasPermission checks if user level meets required level
+// ValidLevel checks if a permission level string is recognized
+func ValidLevel(level string) bool {
+	_, ok := levelValues[level]
+	return ok
+}
+
+// HasPermission checks if user level meets required level.
+// Unknown levels default to 0 (none), which denies access for userLevel
+// but grants access for requiredLevel (security risk if typo in requiredLevel).
+// Use ValidLevel() or RequirePermission() which validates requiredLevel.
 func HasPermission(userLevel, requiredLevel string) bool {
 	return levelValues[userLevel] >= levelValues[requiredLevel]
 }
 
-// RequirePermission returns middleware that checks user has required permission
+// RequirePermission returns middleware that checks user has required permission.
+// Panics if level is not a valid permission level (none, read, edit, delete).
+// This catches typos at startup rather than silently granting access.
 func RequirePermission(resource, level string) gin.HandlerFunc {
+	if !ValidLevel(level) {
+		panic("middleware: invalid permission level: " + level)
+	}
 	return func(c *gin.Context) {
 		scopes, exists := c.Get("scopes")
 		if !exists {

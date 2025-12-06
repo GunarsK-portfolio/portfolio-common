@@ -111,10 +111,19 @@ func (s *service) generateToken(userID int64, username string, scopes map[string
 		return "", ErrEmptyUsername
 	}
 
+	// Defensive copy of scopes map to prevent caller modifications affecting claims
+	var scopesCopy map[string]string
+	if scopes != nil {
+		scopesCopy = make(map[string]string, len(scopes))
+		for k, v := range scopes {
+			scopesCopy[k] = v
+		}
+	}
+
 	claims := Claims{
 		UserID:   userID,
 		Username: username,
-		Scopes:   scopes,
+		Scopes:   scopesCopy,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
