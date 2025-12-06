@@ -272,6 +272,53 @@ func TestLevelConstants(t *testing.T) {
 	}
 }
 
+func TestResourceConstants(t *testing.T) {
+	// Verify resource constants match expected values
+	resources := map[string]string{
+		"ResourceProfile":        ResourceProfile,
+		"ResourceExperience":     ResourceExperience,
+		"ResourceCertifications": ResourceCertifications,
+		"ResourceSkills":         ResourceSkills,
+		"ResourceProjects":       ResourceProjects,
+		"ResourceMiniatures":     ResourceMiniatures,
+		"ResourceFiles":          ResourceFiles,
+		"ResourceMessages":       ResourceMessages,
+		"ResourceRecipients":     ResourceRecipients,
+	}
+
+	expected := map[string]string{
+		"ResourceProfile":        "profile",
+		"ResourceExperience":     "experience",
+		"ResourceCertifications": "certifications",
+		"ResourceSkills":         "skills",
+		"ResourceProjects":       "projects",
+		"ResourceMiniatures":     "miniatures",
+		"ResourceFiles":          "files",
+		"ResourceMessages":       "messages",
+		"ResourceRecipients":     "recipients",
+	}
+
+	for name, got := range resources {
+		want := expected[name]
+		if got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+
+	// Verify constants work with RequirePermission (no panic)
+	gin.SetMode(gin.TestMode)
+	for name, resource := range resources {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("RequirePermission(%q, LevelRead) panicked: %v", resource, r)
+				}
+			}()
+			_ = RequirePermission(resource, LevelRead)
+		})
+	}
+}
+
 func TestRequirePermission_ForbiddenResponseDetails(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
