@@ -14,6 +14,19 @@ const (
 	LevelDelete = "delete"
 )
 
+// Resource constants for type-safe usage
+const (
+	ResourceProfile        = "profile"
+	ResourceExperience     = "experience"
+	ResourceCertifications = "certifications"
+	ResourceSkills         = "skills"
+	ResourceProjects       = "projects"
+	ResourceMiniatures     = "miniatures"
+	ResourceFiles          = "files"
+	ResourceMessages       = "messages"
+	ResourceRecipients     = "recipients"
+)
+
 // Permission levels (hierarchical): none(0) < read(1) < edit(2) < delete(3)
 var levelValues = map[string]int{
 	LevelNone:   0,
