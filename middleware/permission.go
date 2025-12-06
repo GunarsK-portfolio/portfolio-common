@@ -29,11 +29,16 @@ func ValidLevel(level string) bool {
 }
 
 // HasPermission checks if user level meets required level.
-// Unknown levels default to 0 (none), which denies access for userLevel
-// but grants access for requiredLevel (security risk if typo in requiredLevel).
-// Use ValidLevel() or RequirePermission() which validates requiredLevel.
+// Unknown userLevel defaults to 0 (none), denying access.
+// Unknown requiredLevel defaults to max (delete), also denying access.
+// This fail-safe prevents typos from accidentally granting access.
 func HasPermission(userLevel, requiredLevel string) bool {
-	return levelValues[userLevel] >= levelValues[requiredLevel]
+	userVal := levelValues[userLevel] // defaults to 0 if unknown
+	requiredVal, ok := levelValues[requiredLevel]
+	if !ok {
+		requiredVal = levelValues[LevelDelete] // unknown required = max = deny
+	}
+	return userVal >= requiredVal
 }
 
 // RequirePermission returns middleware that checks user has required permission.

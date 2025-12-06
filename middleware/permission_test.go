@@ -29,12 +29,13 @@ func TestHasPermission(t *testing.T) {
 		{"none < read", "none", "read", false},
 		{"none >= none", "none", "none", true},
 
-		// Invalid/unknown levels (default to 0)
-		{"invalid user level", "invalid", "read", false},
-		{"invalid required level", "read", "invalid", true}, // Security risk! Use ValidLevel()
-		{"empty string user level", "", "read", false},
-		{"empty string required level", "read", "", true}, // Security risk! Use ValidLevel()
-		{"both unknown levels", "unknown1", "unknown2", true},
+		// Invalid/unknown levels - fail-safe behavior
+		{"invalid user level", "invalid", "read", false},         // unknown user = 0 (none)
+		{"invalid required level", "read", "invalid", false},     // unknown required = max (delete)
+		{"empty string user level", "", "read", false},           // empty user = 0 (none)
+		{"empty string required level", "read", "", false},       // empty required = max (delete)
+		{"both unknown levels", "unknown1", "unknown2", false},   // 0 < max = denied
+		{"delete with invalid required", "delete", "typo", true}, // 3 >= 3 (max)
 
 		// Edge cases
 		{"case sensitive - Read vs read", "Read", "read", false},

@@ -31,6 +31,7 @@ refreshToken, err := jwtService.GenerateRefreshToken(userID, username, scopes)
 
 // Generate tokens without scopes
 accessToken, err := jwtService.GenerateAccessToken(userID, username, nil)
+refreshToken, err := jwtService.GenerateRefreshToken(userID, username, nil)
 ```
 
 ## Benefits

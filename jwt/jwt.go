@@ -120,13 +120,14 @@ func (s *service) generateToken(userID int64, username string, scopes map[string
 		}
 	}
 
+	now := time.Now()
 	claims := Claims{
 		UserID:   userID,
 		Username: username,
 		Scopes:   scopesCopy,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
+			IssuedAt:  jwt.NewNumericDate(now),
 		},
 	}
 

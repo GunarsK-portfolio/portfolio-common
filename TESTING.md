@@ -29,14 +29,14 @@ go test -v ./health/
 
 ## Test Files
 
-**`jwt/jwt_test.go`** - 50+ tests
+**`jwt/jwt_test.go`** - 55+ tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
 | Constructor | 7 | NewService, NewValidatorOnly, validation |
-| Token Generation | 12 | Access tokens, refresh tokens, claims |
+| Token Generation | 14 | Access tokens, refresh tokens, claims, scopes |
 | Token Validation | 11 | Valid, expired, tampered, malformed |
-| Scopes | 15+ | Token with scopes, nil/empty scopes, validation |
+| Scopes | 18+ | Access/refresh with scopes, nil/empty, defensive copy |
 | Expiry Handling | 5 | TTL, boundary conditions |
 | Concurrency | 2 | Thread-safety verification |
 
@@ -106,12 +106,15 @@ go test -v ./health/
 | RetryDelays | 3 | Defaults, parsing, panic cases |
 | Consumer Settings | 2 | PrefetchCount, ConsumerTag fields |
 
-**`middleware/permission_test.go`** - 12 tests
+**`middleware/permission_test.go`** - 15 tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
-| HasPermission | 11 | Hierarchical levels (none/read/edit/delete) |
+| HasPermission | 19 | Hierarchical levels, fail-safe for invalid levels |
+| ValidLevel | 9 | Valid/invalid level strings |
 | RequirePermission | 9 | No scopes, invalid format, all permission levels |
+| Panic Handling | 4 | Invalid level causes panic at startup |
+| Constants | 1 | Level constant values |
 | Response Details | 1 | Forbidden response includes resource/required/have |
 
 ## Key Testing Patterns

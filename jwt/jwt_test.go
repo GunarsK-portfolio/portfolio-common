@@ -487,6 +487,94 @@ func TestGenerateRefreshToken(t *testing.T) {
 	}
 }
 
+func TestGenerateRefreshToken_WithScopes(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	tests := []struct {
+		name   string
+		scopes map[string]string
+	}{
+		{
+			name:   "with scopes",
+			scopes: map[string]string{"profile": "read", "projects": "edit", "users": "delete"},
+		},
+		{
+			name:   "empty scopes",
+			scopes: map[string]string{},
+		},
+		{
+			name:   "nil scopes",
+			scopes: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token, err := svc.GenerateRefreshToken(1, "testuser", tt.scopes)
+			if err != nil {
+				t.Fatalf("GenerateRefreshToken() error = %v", err)
+			}
+
+			claims, err := svc.ValidateToken(token)
+			if err != nil {
+				t.Fatalf("ValidateToken() error = %v", err)
+			}
+
+			// Verify scopes are correctly stored
+			if tt.scopes == nil {
+				if claims.Scopes != nil {
+					t.Errorf("Claims.Scopes = %v, want nil", claims.Scopes)
+				}
+			} else if len(tt.scopes) == 0 {
+				// Empty map might be nil or empty after JSON round trip
+				if len(claims.Scopes) != 0 {
+					t.Errorf("Claims.Scopes = %v, want empty or nil", claims.Scopes)
+				}
+			} else {
+				if len(claims.Scopes) != len(tt.scopes) {
+					t.Errorf("Claims.Scopes length = %d, want %d", len(claims.Scopes), len(tt.scopes))
+				}
+				for resource, level := range tt.scopes {
+					if claims.Scopes[resource] != level {
+						t.Errorf("Claims.Scopes[%s] = %v, want %v", resource, claims.Scopes[resource], level)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateToken_ScopesDefensiveCopy(t *testing.T) {
+	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
+
+	originalScopes := map[string]string{"profile": "read", "projects": "edit"}
+	token, err := svc.GenerateAccessToken(1, "testuser", originalScopes)
+	if err != nil {
+		t.Fatalf("GenerateAccessToken() error = %v", err)
+	}
+
+	// Mutate original map after token generation
+	originalScopes["profile"] = "delete"
+	originalScopes["newkey"] = "read"
+
+	// Validate token and verify claims weren't affected by mutation
+	claims, err := svc.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+
+	// Claims should have original values, not mutated ones
+	if claims.Scopes["profile"] != "read" {
+		t.Errorf("Claims.Scopes[profile] = %v, want 'read' (defensive copy failed)", claims.Scopes["profile"])
+	}
+	if _, exists := claims.Scopes["newkey"]; exists {
+		t.Error("Claims.Scopes contains 'newkey' but shouldn't (defensive copy failed)")
+	}
+	if len(claims.Scopes) != 2 {
+		t.Errorf("Claims.Scopes length = %d, want 2", len(claims.Scopes))
+	}
+}
+
 func TestGenerateRefreshToken_InputValidation(t *testing.T) {
 	svc, _ := NewService(testSecret, testAccessExpiry, testRefreshExpiry)
 
