@@ -33,5 +33,6 @@
   ],
   "prHourlyLimit": 5,
   "prConcurrentLimit": 10,
-  "rebaseWhen": "behind-base-branch"
+  "rebaseWhen": "behind-base-branch",
+  "postUpdateOptions": ["gomodTidy"]
 }
