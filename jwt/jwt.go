@@ -26,6 +26,7 @@ type Claims struct {
 	Username      string            `json:"username"`
 	Email         string            `json:"email,omitempty"`
 	EmailVerified bool              `json:"email_verified,omitempty"`
+	DisplayName   string            `json:"display_name,omitempty"`
 	Scopes        map[string]string `json:"scopes,omitempty"`
 	jwt.RegisteredClaims
 }
