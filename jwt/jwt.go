@@ -19,6 +19,8 @@ var (
 )
 
 // Claims represents JWT token claims with user information.
+// Email and EmailVerified are not set by GenerateAccessToken/GenerateRefreshToken.
+// Auth-service populates these fields directly on the Claims struct before signing.
 type Claims struct {
 	UserID        int64             `json:"user_id"`
 	Username      string            `json:"username"`

@@ -11,7 +11,7 @@ type Email struct {
 	ID             int64      `json:"id" gorm:"primaryKey"`
 	Type           string     `json:"type" gorm:"column:type;default:contact_form"`
 	Name           *string    `json:"name,omitempty" gorm:"column:name"`
-	Email          *string    `json:"email,omitempty" gorm:"column:email"`
+	SenderEmail    *string    `json:"senderEmail,omitempty" gorm:"column:email"`
 	RecipientEmail *string    `json:"recipientEmail,omitempty" gorm:"column:recipient_email"`
 	Subject        string     `json:"subject" gorm:"column:subject"`
 	Message        string     `json:"message" gorm:"column:message"`
@@ -44,9 +44,10 @@ const (
 	EmailStatusFailed  = "failed"
 )
 
-// Backward compatibility aliases
+// Deprecated: Use Email directly. Will be removed in v1.0.
 type ContactMessage = Email
 
+// Deprecated: Use EmailStatus* constants. Will be removed in v1.0.
 const (
 	MessageStatusPending = EmailStatusPending
 	MessageStatusQueued  = EmailStatusQueued
@@ -73,5 +74,5 @@ type EmailEvent struct {
 	EmailID int64 `json:"emailId"`
 }
 
-// Backward compatibility alias
+// Deprecated: Use EmailEvent directly. Will be removed in v1.0.
 type ContactMessageEvent = EmailEvent
