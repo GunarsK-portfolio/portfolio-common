@@ -5,32 +5,54 @@ import (
 	"time"
 )
 
-// ContactMessage represents a contact form submission
-type ContactMessage struct {
-	ID        int64      `json:"id" gorm:"primaryKey"`
-	Name      string     `json:"name" gorm:"column:name" binding:"required,max=255"`
-	Email     string     `json:"email" gorm:"column:email" binding:"required,email,max=255"`
-	Subject   string     `json:"subject" gorm:"column:subject" binding:"required,max=500"`
-	Message   string     `json:"message" gorm:"column:message" binding:"required"`
-	Honeypot  string     `json:"-" gorm:"column:honeypot"` // Hidden from JSON, spam detection
-	Status    string     `json:"status" gorm:"column:status;default:pending"`
-	Attempts  int        `json:"attempts" gorm:"column:attempts;default:0"`
-	LastError *string    `json:"lastError,omitempty" gorm:"column:last_error"`
-	CreatedAt time.Time  `json:"createdAt" gorm:"column:created_at"`
-	UpdatedAt time.Time  `json:"updatedAt" gorm:"column:updated_at"`
-	SentAt    *time.Time `json:"sentAt,omitempty" gorm:"column:sent_at"`
+// Email represents an email record in the messaging system.
+// Used for contact form submissions, auth verification, password reset, and 2FA emails.
+type Email struct {
+	ID             int64      `json:"id" gorm:"primaryKey"`
+	Type           string     `json:"type" gorm:"column:type;default:contact_form"`
+	Name           *string    `json:"name,omitempty" gorm:"column:name"`
+	SenderEmail    *string    `json:"senderEmail,omitempty" gorm:"column:email"`
+	RecipientEmail *string    `json:"recipientEmail,omitempty" gorm:"column:recipient_email"`
+	Subject        string     `json:"subject" gorm:"column:subject"`
+	Message        string     `json:"message" gorm:"column:message"`
+	Honeypot       string     `json:"-" gorm:"column:honeypot"`
+	Status         string     `json:"status" gorm:"column:status;default:pending"`
+	Attempts       int        `json:"attempts" gorm:"column:attempts;default:0"`
+	LastError      *string    `json:"lastError,omitempty" gorm:"column:last_error"`
+	CreatedAt      time.Time  `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt      time.Time  `json:"updatedAt" gorm:"column:updated_at"`
+	SentAt         *time.Time `json:"sentAt,omitempty" gorm:"column:sent_at"`
 }
 
-func (ContactMessage) TableName() string {
-	return "messaging.contact_messages"
+func (Email) TableName() string {
+	return "messaging.emails"
 }
 
-// ContactMessageStatus constants
+// Email type constants
 const (
-	MessageStatusPending = "pending"
-	MessageStatusQueued  = "queued"
-	MessageStatusSent    = "sent"
-	MessageStatusFailed  = "failed"
+	EmailTypeContactForm       = "contact_form"
+	EmailTypeEmailVerification = "email_verification"
+	EmailTypePasswordReset     = "password_reset"
+	EmailType2FACode           = "2fa_code"
+)
+
+// Email status constants
+const (
+	EmailStatusPending = "pending"
+	EmailStatusQueued  = "queued"
+	EmailStatusSent    = "sent"
+	EmailStatusFailed  = "failed"
+)
+
+// Deprecated: Use Email directly. Will be removed in v1.0.
+type ContactMessage = Email
+
+// Deprecated: Use EmailStatus* constants. Will be removed in v1.0.
+const (
+	MessageStatusPending = EmailStatusPending
+	MessageStatusQueued  = EmailStatusQueued
+	MessageStatusSent    = EmailStatusSent
+	MessageStatusFailed  = EmailStatusFailed
 )
 
 // ContactMessageCreate is the DTO for creating a new contact message (public endpoint)
@@ -47,7 +69,10 @@ func (c *ContactMessageCreate) IsSpam() bool {
 	return strings.TrimSpace(c.Honeypot) != ""
 }
 
-// ContactMessageEvent is the message published to the queue for processing
-type ContactMessageEvent struct {
-	MessageID int64 `json:"messageId"`
+// EmailEvent is the message published to the queue for processing
+type EmailEvent struct {
+	EmailID int64 `json:"emailId"`
 }
+
+// Deprecated: Use EmailEvent directly. Will be removed in v1.0.
+type ContactMessageEvent = EmailEvent

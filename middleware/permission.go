@@ -25,6 +25,7 @@ const (
 	ResourceFiles          = "files"
 	ResourceMessages       = "messages"
 	ResourceRecipients     = "recipients"
+	ResourceEmails         = "emails"
 )
 
 // Permission levels (hierarchical): none(0) < read(1) < edit(2) < delete(3)
