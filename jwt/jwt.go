@@ -20,9 +20,11 @@ var (
 
 // Claims represents JWT token claims with user information.
 type Claims struct {
-	UserID   int64             `json:"user_id"`
-	Username string            `json:"username"`
-	Scopes   map[string]string `json:"scopes,omitempty"`
+	UserID        int64             `json:"user_id"`
+	Username      string            `json:"username"`
+	Email         string            `json:"email,omitempty"`
+	EmailVerified bool              `json:"email_verified,omitempty"`
+	Scopes        map[string]string `json:"scopes,omitempty"`
 	jwt.RegisteredClaims
 }
 
