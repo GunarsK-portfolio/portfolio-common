@@ -44,6 +44,15 @@ const (
 	EmailStatusFailed  = "failed"
 )
 
+// ValidEmailStatus reports whether s is a known email status value.
+func ValidEmailStatus(s string) bool {
+	switch s {
+	case EmailStatusPending, EmailStatusQueued, EmailStatusSent, EmailStatusFailed:
+		return true
+	}
+	return false
+}
+
 // Deprecated: Use Email directly. Will be removed in v1.0.
 type ContactMessage = Email
 
