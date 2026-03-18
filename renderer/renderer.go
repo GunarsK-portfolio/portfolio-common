@@ -25,6 +25,9 @@ var typeRegistry = map[string]emailTypeMeta{
 		Subject:      "Reset your password",
 		RequiredKeys: []string{"username", "reset_url"},
 	},
+	models.EmailTypeContactForm: {
+		RequiredKeys: []string{"name", "email", "subject", "message", "submitted_at", "id"},
+	},
 }
 
 // parsed templates, loaded once at init
@@ -41,12 +44,15 @@ func init() {
 	}
 }
 
-// SubjectForType returns the subject line for an email type.
-func SubjectForType(emailType string) string {
-	if meta, ok := typeRegistry[emailType]; ok {
-		return meta.Subject
+// SubjectForType returns the static subject line for an email type.
+// The bool indicates whether the type exists in the registry.
+// Some types (e.g. contact_form) have no static subject — callers supply it.
+func SubjectForType(emailType string) (string, bool) {
+	meta, ok := typeRegistry[emailType]
+	if !ok {
+		return "", false
 	}
-	return ""
+	return meta.Subject, true
 }
 
 // Render renders an email template with the given data.
