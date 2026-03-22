@@ -16,6 +16,7 @@ type S3Config struct {
 	ImagesBucket     string // Bucket for portfolio images
 	DocumentsBucket  string // Bucket for documents (PDF, Word)
 	MiniaturesBucket string // Bucket for miniature/thumbnail images
+	AvatarsBucket    string // Bucket for hero/character avatar images
 }
 
 // NewS3Config loads S3 configuration from environment variables
@@ -27,7 +28,8 @@ func NewS3Config() S3Config {
 		UseSSL:           GetEnvBool("S3_USE_SSL", false),
 		ImagesBucket:     GetEnv("S3_IMAGES_BUCKET", "images"),         // Default for local MinIO
 		DocumentsBucket:  GetEnv("S3_DOCUMENTS_BUCKET", "documents"),   // Default for local MinIO
-		MiniaturesBucket: GetEnv("S3_MINIATURES_BUCKET", "miniatures"), // Default for local MinIO
+		MiniaturesBucket: GetEnv("S3_MINIATURES_BUCKET", "miniatures"),          // Default for local MinIO
+		AvatarsBucket:    GetEnv("S3_AVATARS_BUCKET", "character-portraits"), // Default for local MinIO
 	}
 
 	// Validate endpoint is a valid URL
