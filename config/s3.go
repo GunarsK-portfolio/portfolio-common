@@ -26,9 +26,9 @@ func NewS3Config() S3Config {
 		AccessKey:        GetEnv("S3_ACCESS_KEY", ""), // Optional for IAM role authentication
 		SecretKey:        GetEnv("S3_SECRET_KEY", ""), // Optional for IAM role authentication
 		UseSSL:           GetEnvBool("S3_USE_SSL", false),
-		ImagesBucket:     GetEnv("S3_IMAGES_BUCKET", "images"),         // Default for local MinIO
-		DocumentsBucket:  GetEnv("S3_DOCUMENTS_BUCKET", "documents"),   // Default for local MinIO
-		MiniaturesBucket: GetEnv("S3_MINIATURES_BUCKET", "miniatures"),          // Default for local MinIO
+		ImagesBucket:     GetEnv("S3_IMAGES_BUCKET", "images"),               // Default for local MinIO
+		DocumentsBucket:  GetEnv("S3_DOCUMENTS_BUCKET", "documents"),         // Default for local MinIO
+		MiniaturesBucket: GetEnv("S3_MINIATURES_BUCKET", "miniatures"),       // Default for local MinIO
 		AvatarsBucket:    GetEnv("S3_AVATARS_BUCKET", "character-portraits"), // Default for local MinIO
 	}
 
