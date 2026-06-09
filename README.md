@@ -9,7 +9,7 @@ Shared Go package for common code across portfolio microservices.
 
 ## Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - Node.js 22+ and npm 11+
 
 ## Packages
