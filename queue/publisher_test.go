@@ -2,9 +2,11 @@ package queue
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/GunarsK-portfolio/portfolio-common/config"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -44,7 +46,7 @@ func TestRetryQueues_Empty(t *testing.T) {
 
 func TestDLQName(t *testing.T) {
 	publisher := &RabbitMQPublisher{
-		queue: "contact_messages",
+		cfg: config.RabbitMQConfig{Queue: "contact_messages"},
 	}
 
 	got := publisher.DLQName()
@@ -57,7 +59,7 @@ func TestDLQName(t *testing.T) {
 
 func TestDLXName(t *testing.T) {
 	publisher := &RabbitMQPublisher{
-		exchange: "contact_exchange",
+		cfg: config.RabbitMQConfig{Exchange: "contact_exchange"},
 	}
 
 	got := publisher.DLXName()
@@ -140,6 +142,11 @@ func TestErrorDefinitions(t *testing.T) {
 			name:    "ErrPublishFailed",
 			err:     ErrPublishFailed,
 			wantMsg: "failed to publish message",
+		},
+		{
+			name:    "ErrPublishNotConfirmed",
+			err:     ErrPublishNotConfirmed,
+			wantMsg: "publish not confirmed by broker",
 		},
 		{
 			name:    "ErrPublisherClosed",
@@ -281,6 +288,66 @@ func TestPublishingDefaults(t *testing.T) {
 	}
 	if publishing.ContentType != "application/json" {
 		t.Error("Content type should be application/json")
+	}
+}
+
+// =============================================================================
+// Jittered Expiration Tests
+// =============================================================================
+
+func TestJitteredExpiration_Disabled(t *testing.T) {
+	tests := []struct {
+		name   string
+		delay  time.Duration
+		jitter float64
+	}{
+		{"zero jitter", 5 * time.Second, 0},
+		{"negative jitter", 5 * time.Second, -0.5},
+		{"zero delay", 0, 0.5},
+		{"negative delay", -time.Second, 0.5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := jitteredExpiration(tt.delay, tt.jitter); got != "" {
+				t.Errorf("jitteredExpiration(%v, %v) = %q, want empty", tt.delay, tt.jitter, got)
+			}
+		})
+	}
+}
+
+func TestJitteredExpiration_WithinBounds(t *testing.T) {
+	delay := 10 * time.Second
+	jitter := 0.3
+
+	for i := 0; i < 100; i++ {
+		got := jitteredExpiration(delay, jitter)
+		ms, err := strconv.ParseInt(got, 10, 64)
+		if err != nil {
+			t.Fatalf("jitteredExpiration returned non-numeric value %q: %v", got, err)
+		}
+		// Expiration must be in [delay*(1-jitter), delay].
+		minMs := int64(7000)
+		maxMs := int64(10000)
+		if ms < minMs || ms > maxMs {
+			t.Fatalf("jitteredExpiration = %dms, want in [%d, %d]", ms, minMs, maxMs)
+		}
+	}
+}
+
+func TestJitteredExpiration_ClampsJitterAboveOne(t *testing.T) {
+	delay := 1 * time.Second
+
+	for i := 0; i < 100; i++ {
+		got := jitteredExpiration(delay, 5.0)
+		ms, err := strconv.ParseInt(got, 10, 64)
+		if err != nil {
+			t.Fatalf("jitteredExpiration returned non-numeric value %q: %v", got, err)
+		}
+		// Jitter clamps to 1.0, and the floor is 1ms.
+		if ms < 1 || ms > 1000 {
+			t.Fatalf("jitteredExpiration = %dms, want in [1, 1000]", ms)
+		}
 	}
 }
 

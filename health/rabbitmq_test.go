@@ -33,3 +33,43 @@ func TestRabbitMQChecker_Check_NilConnection(t *testing.T) {
 		t.Errorf("expected 'connection is nil' error, got %s", result.Error)
 	}
 }
+
+func TestNewRabbitMQCheckerWithProvider_NilProvider(t *testing.T) {
+	checker := NewRabbitMQCheckerWithProvider(nil)
+
+	result := checker.Check(context.Background())
+
+	if result.Status != StatusUnhealthy {
+		t.Errorf("expected unhealthy status for nil provider, got %s", result.Status)
+	}
+}
+
+func TestNewRabbitMQCheckerWithProvider_Name(t *testing.T) {
+	checker := NewRabbitMQCheckerWithProvider(nil)
+
+	if checker.Name() != "rabbitmq" {
+		t.Errorf("expected name 'rabbitmq', got %s", checker.Name())
+	}
+}
+
+func TestQueueDepthChecker_Name(t *testing.T) {
+	checker := NewQueueDepthChecker(nil, "contact_messages_dlq", 0)
+
+	want := "queue:contact_messages_dlq"
+	if checker.Name() != want {
+		t.Errorf("expected name %q, got %s", want, checker.Name())
+	}
+}
+
+func TestQueueDepthChecker_Check_NilConnection(t *testing.T) {
+	checker := NewQueueDepthChecker(nil, "contact_messages_dlq", 0)
+
+	result := checker.Check(context.Background())
+
+	if result.Status != StatusUnhealthy {
+		t.Errorf("expected unhealthy status for nil connection, got %s", result.Status)
+	}
+	if result.Error != "connection unavailable" {
+		t.Errorf("expected 'connection unavailable' error, got %s", result.Error)
+	}
+}

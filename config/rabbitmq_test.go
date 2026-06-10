@@ -198,6 +198,198 @@ func TestParseRetryDelays_Panics(t *testing.T) {
 }
 
 // =============================================================================
+// WithDefaults Tests
+// =============================================================================
+
+func TestWithDefaults_FillsZeroValues(t *testing.T) {
+	cfg := RabbitMQConfig{}.WithDefaults()
+
+	if cfg.Heartbeat != DefaultHeartbeat {
+		t.Errorf("Heartbeat = %v, want %v", cfg.Heartbeat, DefaultHeartbeat)
+	}
+	if cfg.ReconnectInitialDelay != DefaultReconnectInitialDelay {
+		t.Errorf("ReconnectInitialDelay = %v, want %v", cfg.ReconnectInitialDelay, DefaultReconnectInitialDelay)
+	}
+	if cfg.ReconnectMaxDelay != DefaultReconnectMaxDelay {
+		t.Errorf("ReconnectMaxDelay = %v, want %v", cfg.ReconnectMaxDelay, DefaultReconnectMaxDelay)
+	}
+	if cfg.PrefetchCount != 1 {
+		t.Errorf("PrefetchCount = %d, want 1", cfg.PrefetchCount)
+	}
+	if cfg.ConsumerConcurrency != 1 {
+		t.Errorf("ConsumerConcurrency = %d, want 1", cfg.ConsumerConcurrency)
+	}
+}
+
+func TestWithDefaults_KeepsExplicitValues(t *testing.T) {
+	cfg := RabbitMQConfig{
+		Heartbeat:             20 * time.Second,
+		ReconnectInitialDelay: 2 * time.Second,
+		ReconnectMaxDelay:     time.Minute,
+		PrefetchCount:         8,
+		ConsumerConcurrency:   4,
+	}.WithDefaults()
+
+	if cfg.Heartbeat != 20*time.Second {
+		t.Errorf("Heartbeat = %v, want 20s", cfg.Heartbeat)
+	}
+	if cfg.ReconnectInitialDelay != 2*time.Second {
+		t.Errorf("ReconnectInitialDelay = %v, want 2s", cfg.ReconnectInitialDelay)
+	}
+	if cfg.ReconnectMaxDelay != time.Minute {
+		t.Errorf("ReconnectMaxDelay = %v, want 1m", cfg.ReconnectMaxDelay)
+	}
+	if cfg.PrefetchCount != 8 {
+		t.Errorf("PrefetchCount = %d, want 8", cfg.PrefetchCount)
+	}
+	if cfg.ConsumerConcurrency != 4 {
+		t.Errorf("ConsumerConcurrency = %d, want 4", cfg.ConsumerConcurrency)
+	}
+}
+
+// =============================================================================
+// Prefixed Environment Tests
+// =============================================================================
+
+func setBaseRabbitMQEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("RABBITMQ_HOST", "base-host")
+	t.Setenv("RABBITMQ_PORT", "5672")
+	t.Setenv("RABBITMQ_USER", "base-user")
+	t.Setenv("RABBITMQ_PASSWORD", "base-pass")
+	t.Setenv("RABBITMQ_QUEUE", "base_queue")
+	t.Setenv("RABBITMQ_EXCHANGE", "base_exchange")
+}
+
+func TestNewRabbitMQConfigWithPrefix_EmptyPrefixUsesBaseVars(t *testing.T) {
+	setBaseRabbitMQEnv(t)
+
+	cfg := NewRabbitMQConfigWithPrefix("")
+
+	if cfg.Host != "base-host" {
+		t.Errorf("Host = %q, want %q", cfg.Host, "base-host")
+	}
+	if cfg.Queue != "base_queue" {
+		t.Errorf("Queue = %q, want %q", cfg.Queue, "base_queue")
+	}
+}
+
+func TestNewRabbitMQConfigWithPrefix_PrefixedOverridesBase(t *testing.T) {
+	setBaseRabbitMQEnv(t)
+	t.Setenv("AI_RABBITMQ_QUEUE", "ai_jobs")
+	t.Setenv("AI_RABBITMQ_EXCHANGE", "ai_exchange")
+	t.Setenv("AI_RABBITMQ_RETRY_DELAYS", "5s,15s")
+	t.Setenv("AI_RABBITMQ_PREFETCH_COUNT", "2")
+
+	cfg := NewRabbitMQConfigWithPrefix("AI_")
+
+	// Prefixed values win.
+	if cfg.Queue != "ai_jobs" {
+		t.Errorf("Queue = %q, want %q", cfg.Queue, "ai_jobs")
+	}
+	if cfg.Exchange != "ai_exchange" {
+		t.Errorf("Exchange = %q, want %q", cfg.Exchange, "ai_exchange")
+	}
+	if len(cfg.RetryDelays) != 2 || cfg.RetryDelays[0] != 5*time.Second {
+		t.Errorf("RetryDelays = %v, want [5s 15s]", cfg.RetryDelays)
+	}
+	if cfg.PrefetchCount != 2 {
+		t.Errorf("PrefetchCount = %d, want 2", cfg.PrefetchCount)
+	}
+
+	// Un-prefixed values are the fallback for shared settings.
+	if cfg.Host != "base-host" {
+		t.Errorf("Host = %q, want fallback %q", cfg.Host, "base-host")
+	}
+	if cfg.User != "base-user" {
+		t.Errorf("User = %q, want fallback %q", cfg.User, "base-user")
+	}
+}
+
+func TestNewRabbitMQConfig_Defaults(t *testing.T) {
+	setBaseRabbitMQEnv(t)
+
+	cfg := NewRabbitMQConfig()
+
+	if cfg.Heartbeat != DefaultHeartbeat {
+		t.Errorf("Heartbeat = %v, want %v", cfg.Heartbeat, DefaultHeartbeat)
+	}
+	if cfg.PublisherConfirms {
+		t.Error("PublisherConfirms should default to false")
+	}
+	if cfg.DisableReconnect {
+		t.Error("DisableReconnect should default to false (reconnect enabled)")
+	}
+	if cfg.ReconnectMaxAttempts != 0 {
+		t.Errorf("ReconnectMaxAttempts = %d, want 0 (unlimited)", cfg.ReconnectMaxAttempts)
+	}
+	if cfg.ReconnectInitialDelay != DefaultReconnectInitialDelay {
+		t.Errorf("ReconnectInitialDelay = %v, want %v", cfg.ReconnectInitialDelay, DefaultReconnectInitialDelay)
+	}
+	if cfg.ReconnectMaxDelay != DefaultReconnectMaxDelay {
+		t.Errorf("ReconnectMaxDelay = %v, want %v", cfg.ReconnectMaxDelay, DefaultReconnectMaxDelay)
+	}
+	if cfg.RetryJitter != 0 {
+		t.Errorf("RetryJitter = %v, want 0", cfg.RetryJitter)
+	}
+	if cfg.ConsumerConcurrency != 1 {
+		t.Errorf("ConsumerConcurrency = %d, want 1", cfg.ConsumerConcurrency)
+	}
+}
+
+func TestNewRabbitMQConfig_NewFieldsFromEnv(t *testing.T) {
+	setBaseRabbitMQEnv(t)
+	t.Setenv("RABBITMQ_HEARTBEAT", "20s")
+	t.Setenv("RABBITMQ_PUBLISHER_CONFIRMS", "true")
+	t.Setenv("RABBITMQ_RETRY_JITTER", "0.25")
+	t.Setenv("RABBITMQ_RECONNECT", "false")
+	t.Setenv("RABBITMQ_RECONNECT_MAX_ATTEMPTS", "10")
+	t.Setenv("RABBITMQ_RECONNECT_INITIAL_DELAY", "2s")
+	t.Setenv("RABBITMQ_RECONNECT_MAX_DELAY", "1m")
+	t.Setenv("RABBITMQ_CONSUMER_CONCURRENCY", "4")
+
+	cfg := NewRabbitMQConfig()
+
+	if cfg.Heartbeat != 20*time.Second {
+		t.Errorf("Heartbeat = %v, want 20s", cfg.Heartbeat)
+	}
+	if !cfg.PublisherConfirms {
+		t.Error("PublisherConfirms should be true")
+	}
+	if cfg.RetryJitter != 0.25 {
+		t.Errorf("RetryJitter = %v, want 0.25", cfg.RetryJitter)
+	}
+	if !cfg.DisableReconnect {
+		t.Error("DisableReconnect should be true when RABBITMQ_RECONNECT=false")
+	}
+	if cfg.ReconnectMaxAttempts != 10 {
+		t.Errorf("ReconnectMaxAttempts = %d, want 10", cfg.ReconnectMaxAttempts)
+	}
+	if cfg.ReconnectInitialDelay != 2*time.Second {
+		t.Errorf("ReconnectInitialDelay = %v, want 2s", cfg.ReconnectInitialDelay)
+	}
+	if cfg.ReconnectMaxDelay != time.Minute {
+		t.Errorf("ReconnectMaxDelay = %v, want 1m", cfg.ReconnectMaxDelay)
+	}
+	if cfg.ConsumerConcurrency != 4 {
+		t.Errorf("ConsumerConcurrency = %d, want 4", cfg.ConsumerConcurrency)
+	}
+}
+
+func TestNewRabbitMQConfig_InvalidJitterPanics(t *testing.T) {
+	setBaseRabbitMQEnv(t)
+	t.Setenv("RABBITMQ_RETRY_JITTER", "1.5")
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("NewRabbitMQConfig should panic for jitter > 1")
+		}
+	}()
+
+	NewRabbitMQConfig()
+}
+
+// =============================================================================
 // Consumer Settings Tests
 // =============================================================================
 

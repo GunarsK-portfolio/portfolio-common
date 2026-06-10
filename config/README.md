@@ -43,6 +43,22 @@ intVal := config.GetEnvInt("PORT", 8080)
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` - Required
 - `DB_SSLMODE` - Optional (disable, require, verify-ca, verify-full)
 
+### RabbitMQConfig
+
+- `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` - Required
+- Optional: `RABBITMQ_TLS`, `RABBITMQ_EXCHANGE`, `RABBITMQ_QUEUE`,
+  `RABBITMQ_RETRY_DELAYS`, `RABBITMQ_RETRY_JITTER`, `RABBITMQ_HEARTBEAT`,
+  `RABBITMQ_PUBLISHER_CONFIRMS`, `RABBITMQ_RECONNECT`,
+  `RABBITMQ_RECONNECT_MAX_ATTEMPTS`, `RABBITMQ_RECONNECT_INITIAL_DELAY`,
+  `RABBITMQ_RECONNECT_MAX_DELAY`, `RABBITMQ_PREFETCH_COUNT`,
+  `RABBITMQ_CONSUMER_TAG`, `RABBITMQ_CONSUMER_CONCURRENCY`
+
+See the `queue` package README for defaults and semantics.
+
+`NewRabbitMQConfigWithPrefix(prefix)` reads each variable as
+`<prefix>RABBITMQ_*` with fallback to the un-prefixed name, allowing one
+service to configure multiple queues independently.
+
 ### CookieConfig
 
 - `COOKIE_DOMAIN` - Cookie domain (e.g., ".example.com" for prod, "" for local)
