@@ -530,6 +530,10 @@ func (c *RabbitMQConsumer) teardown() {
 // Close stops consuming and closes the connection. If a Consume call is
 // active, Close blocks until in-flight handlers finish and Consume returns.
 // Idempotent: subsequent calls return nil.
+//
+// Close must not be called from inside a MessageHandler: it waits for that
+// very handler to finish and would deadlock. To stop consuming from within a
+// handler, cancel the context passed to Consume instead.
 func (c *RabbitMQConsumer) Close() error {
 	c.mu.Lock()
 	if c.closed {

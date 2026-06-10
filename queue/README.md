@@ -145,7 +145,8 @@ consumer and are invisible to others until processed.
   completion (handlers should honor ctx for long work) and their messages
   are requeued without burning a retry attempt if they fail.
 - `Close()` on the consumer blocks until in-flight handlers finish and the
-  connection is released.
+  connection is released. Never call it from inside a handler (it would
+  deadlock waiting for that handler); cancel the consume context instead.
 - Shut down the consumer before the publisher: in-flight handlers may still
   publish to retry queues.
 
