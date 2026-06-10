@@ -20,6 +20,13 @@ boolVal := config.GetEnvBool("FEATURE_FLAG", false)
 intVal := config.GetEnvInt("PORT", 8080)
 ```
 
+### Boolean values
+
+`GetEnvBool` and the `RABBITMQ_*` boolean variables accept case-insensitive
+`true`, `false`, `1`, or `0` (surrounding whitespace ignored). Empty or
+whitespace-only values keep the default. Anything else (e.g. `yes`, `on`,
+`t`) panics at startup instead of silently reading as false.
+
 ## Configuration Types
 
 - `ServiceConfig` - Port, environment, allowed origins

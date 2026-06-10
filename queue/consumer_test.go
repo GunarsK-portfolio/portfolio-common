@@ -1,6 +1,9 @@
 package queue
 
 import (
+	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -87,6 +90,108 @@ func TestGetRetryCount(t *testing.T) {
 				t.Errorf("GetRetryCount() = %d, want %d", result, tt.expected)
 			}
 		})
+	}
+}
+
+// =============================================================================
+// WillRetry Tests
+// =============================================================================
+
+func TestWillRetry(t *testing.T) {
+	tests := []struct {
+		name       string
+		headers    amqp.Table
+		maxRetries int
+		expected   bool
+	}{
+		{
+			name:       "first attempt with retries configured",
+			headers:    nil,
+			maxRetries: 3,
+			expected:   true,
+		},
+		{
+			name:       "last attempt that still retries",
+			headers:    amqp.Table{RetryCountHeader: int32(2)},
+			maxRetries: 3,
+			expected:   true,
+		},
+		{
+			name:       "retries exhausted",
+			headers:    amqp.Table{RetryCountHeader: int32(3)},
+			maxRetries: 3,
+			expected:   false,
+		},
+		{
+			name:       "count beyond max",
+			headers:    amqp.Table{RetryCountHeader: int32(5)},
+			maxRetries: 3,
+			expected:   false,
+		},
+		{
+			name:       "no retry queues configured",
+			headers:    nil,
+			maxRetries: 0,
+			expected:   false,
+		},
+		{
+			name:       "negative count treated as first attempt",
+			headers:    amqp.Table{RetryCountHeader: int32(-1)},
+			maxRetries: 1,
+			expected:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			delivery := amqp.Delivery{Headers: tt.headers}
+			if got := WillRetry(delivery, tt.maxRetries); got != tt.expected {
+				t.Errorf("WillRetry() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// invokeHandler Tests
+// =============================================================================
+
+func TestInvokeHandler_RecoversPanic(t *testing.T) {
+	c := &RabbitMQConsumer{logger: testLogger()}
+	delivery := amqp.Delivery{MessageId: "m1", CorrelationId: "c1"}
+
+	err := c.invokeHandler(context.Background(), delivery, func(context.Context, amqp.Delivery) error {
+		panic("boom")
+	})
+
+	if err == nil {
+		t.Fatal("invokeHandler should convert a panic into an error")
+	}
+	if !strings.Contains(err.Error(), "handler panic: boom") {
+		t.Errorf("error = %q, want it to contain the panic value", err.Error())
+	}
+	// Panics ride the retry ladder; they must not classify as permanent.
+	if errors.Is(err, ErrPermanent) {
+		t.Error("panic error should not match ErrPermanent")
+	}
+}
+
+func TestInvokeHandler_PassesThroughHandlerResult(t *testing.T) {
+	c := &RabbitMQConsumer{logger: testLogger()}
+	delivery := amqp.Delivery{}
+
+	if err := c.invokeHandler(context.Background(), delivery, func(context.Context, amqp.Delivery) error {
+		return nil
+	}); err != nil {
+		t.Errorf("invokeHandler() = %v, want nil for successful handler", err)
+	}
+
+	want := errors.New("transient")
+	got := c.invokeHandler(context.Background(), delivery, func(context.Context, amqp.Delivery) error {
+		return want
+	})
+	if !errors.Is(got, want) {
+		t.Errorf("invokeHandler() = %v, want the handler's own error", got)
 	}
 }
 

@@ -51,6 +51,11 @@ err = consumer.Consume(ctx, func(c context.Context, d amqp.Delivery) error {
 
 // Get retry count from message headers
 retryCount := queue.GetRetryCount(delivery)
+
+// Inside a handler: will this delivery retry on a transient error, or is
+// this the final attempt before the DLQ? Uses the same predicate the
+// consumer applies after the handler returns.
+finalAttempt := !queue.WillRetry(delivery, publisher.MaxRetries())
 ```
 
 ## Features
@@ -91,6 +96,22 @@ deduplication where needed.
    straight to the DLQ.
 5. If the consume context is cancelled while a message is being handled
    (shutdown), the message is requeued without consuming a retry attempt.
+
+Handlers that need to record the upcoming routing decision (e.g. "will
+retry" vs "final attempt") should use `queue.WillRetry(delivery,
+publisher.MaxRetries())` instead of re-deriving it from the retry count - it
+is the same predicate the consumer applies, so the two cannot drift. A
+handler returning a `queue.Permanent` error always goes to the DLQ
+regardless of what `WillRetry` reported.
+
+### Panics
+
+A handler panic does not crash the worker: the consumer recovers it, logs
+the stack at error level, and treats it as a transient handler error that
+rides the retry ladder. A deterministically panicking message therefore
+reaches the DLQ after the configured retries instead of crash-looping the
+process. Mark input-dependent failures with `queue.Permanent` in the handler
+when retrying is pointless.
 
 ### Retry Jitter
 

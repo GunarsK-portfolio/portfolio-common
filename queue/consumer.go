@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -30,6 +31,10 @@ var (
 // Return nil to ACK the message, return error to trigger retry logic.
 // Wrap errors with Permanent() to skip retries and go straight to the DLQ.
 // The context carries the message correlation ID (logger.GetCorrelationID).
+//
+// A panic inside the handler does not crash the process: it is recovered,
+// logged with the stack, and treated as a transient handler error that rides
+// the retry ladder (reaching the DLQ once retries are exhausted).
 type MessageHandler func(ctx context.Context, delivery amqp.Delivery) error
 
 // Consumer defines the interface for message queue consuming
@@ -368,7 +373,7 @@ func (c *RabbitMQConsumer) processDelivery(ctx context.Context, delivery amqp.De
 	)
 
 	start := time.Now()
-	err := handler(ctx, delivery)
+	err := c.invokeHandler(ctx, delivery, handler)
 	duration := time.Since(start)
 
 	if err == nil {
@@ -415,8 +420,7 @@ func (c *RabbitMQConsumer) processDelivery(ctx context.Context, delivery amqp.De
 		"maxRetries", c.publisher.MaxRetries(),
 	)
 
-	maxRetries := c.publisher.MaxRetries()
-	if retryCount < maxRetries {
+	if WillRetry(delivery, c.publisher.MaxRetries()) {
 		// Try to republish to retry queue first (before ACK)
 		if pubErr := c.publishToRetryWithCount(ctx, retryCount, delivery); pubErr != nil {
 			// Publish failed - NACK to requeue for redelivery
@@ -459,6 +463,27 @@ func (c *RabbitMQConsumer) processDelivery(ctx context.Context, delivery amqp.De
 	}
 }
 
+// invokeHandler calls the handler, converting a panic into an ordinary
+// transient (not Permanent) error so processDelivery's ack/nack routing
+// still runs: a temporary cause gets its retry chances, and a deterministic
+// panic reaches the DLQ once the ladder is exhausted instead of
+// crash-looping the process.
+func (c *RabbitMQConsumer) invokeHandler(ctx context.Context, delivery amqp.Delivery, handler MessageHandler) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Error("Handler panicked",
+				"panic", r,
+				"stack", string(debug.Stack()),
+				"messageId", delivery.MessageId,
+				"correlationId", delivery.CorrelationId,
+				"retryCount", GetRetryCount(delivery),
+			)
+			err = fmt.Errorf("handler panic: %v", r)
+		}
+	}()
+	return handler(ctx, delivery)
+}
+
 // publishToRetryWithCount publishes to retry queue with incremented retry count header
 func (c *RabbitMQConsumer) publishToRetryWithCount(ctx context.Context, currentRetry int, delivery amqp.Delivery) error {
 	// Create new headers with incremented retry count
@@ -473,6 +498,17 @@ func (c *RabbitMQConsumer) publishToRetryWithCount(ctx context.Context, currentR
 
 	// Use publisher's channel for retry publish
 	return c.publisher.PublishToRetry(ctx, currentRetry, delivery.Body, delivery.CorrelationId, headers)
+}
+
+// WillRetry reports whether a delivery that fails with a transient error
+// will be routed to a retry queue (true) or dead-lettered (false). It is
+// the exact predicate the consumer applies after the handler returns, so
+// handlers can record the upcoming routing decision without re-deriving it.
+// maxRetries is the number of configured retry queues
+// (publisher.MaxRetries()). Errors matching ErrPermanent go straight to the
+// DLQ regardless.
+func WillRetry(delivery amqp.Delivery, maxRetries int) bool {
+	return GetRetryCount(delivery) < maxRetries
 }
 
 // GetRetryCount extracts the retry count from message headers.

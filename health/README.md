@@ -46,7 +46,9 @@ router.GET("/health", healthAgg.Handler())
 
 ## Available Checkers
 
-- `NewPostgresChecker(db *gorm.DB)` - PostgreSQL ping
+- `NewPostgresChecker(db *gorm.DB)` - PostgreSQL ping (GORM)
+- `NewPgxChecker(pool *pgxpool.Pool)` - PostgreSQL ping (pgx pool); same
+  "postgres" name as the GORM checker, register one or the other
 - `NewRabbitMQChecker(conn *amqp.Connection)` - Connection status (fixed
   connection; goes stale if the owner reconnects)
 - `NewRabbitMQCheckerWithProvider(provider func() *amqp.Connection)` -

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -306,6 +307,20 @@ func TestNewRabbitMQConfigWithPrefix_PrefixedOverridesBase(t *testing.T) {
 	}
 }
 
+func TestNewRabbitMQConfigWithPrefix_WhitespacePrefixedFallsBack(t *testing.T) {
+	setBaseRabbitMQEnv(t)
+	t.Setenv("RABBITMQ_QUEUE", "base_queue")
+	// A whitespace-only prefixed value counts as unset and must fall back to
+	// the un-prefixed variable, not short-circuit to the default.
+	t.Setenv("AI_RABBITMQ_QUEUE", "   ")
+
+	cfg := NewRabbitMQConfigWithPrefix("AI_")
+
+	if cfg.Queue != "base_queue" {
+		t.Errorf("Queue = %q, want fallback %q", cfg.Queue, "base_queue")
+	}
+}
+
 func TestNewRabbitMQConfig_Defaults(t *testing.T) {
 	setBaseRabbitMQEnv(t)
 
@@ -373,6 +388,82 @@ func TestNewRabbitMQConfig_NewFieldsFromEnv(t *testing.T) {
 	}
 	if cfg.ConsumerConcurrency != 4 {
 		t.Errorf("ConsumerConcurrency = %d, want 4", cfg.ConsumerConcurrency)
+	}
+}
+
+func TestNewRabbitMQConfig_BoolParsing(t *testing.T) {
+	tests := []struct {
+		name         string
+		value        string
+		wantConfirms bool
+	}{
+		{"lowercase true", "true", true},
+		{"uppercase with trailing space", "TRUE ", true},
+		{"one", "1", true},
+		{"mixed case false", "False", false},
+		{"zero", "0", false},
+		{"whitespace only keeps default", "   ", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setBaseRabbitMQEnv(t)
+			t.Setenv("RABBITMQ_PUBLISHER_CONFIRMS", tt.value)
+
+			cfg := NewRabbitMQConfig()
+
+			if cfg.PublisherConfirms != tt.wantConfirms {
+				t.Errorf("PublisherConfirms = %v for %q, want %v", cfg.PublisherConfirms, tt.value, tt.wantConfirms)
+			}
+		})
+	}
+}
+
+func TestNewRabbitMQConfig_InvalidBoolPanics(t *testing.T) {
+	tests := []struct {
+		name        string
+		envVar      string
+		prefix      string
+		wantInPanic string
+	}{
+		{
+			name:        "yes is rejected naming the un-prefixed variable",
+			envVar:      "RABBITMQ_RECONNECT",
+			prefix:      "",
+			wantInPanic: "RABBITMQ_RECONNECT",
+		},
+		{
+			name:        "prefixed variable named when it resolved",
+			envVar:      "AI_RABBITMQ_RECONNECT",
+			prefix:      "AI_",
+			wantInPanic: "AI_RABBITMQ_RECONNECT",
+		},
+		{
+			name:        "un-prefixed fallback named when it resolved",
+			envVar:      "RABBITMQ_RECONNECT",
+			prefix:      "AI_",
+			wantInPanic: "RABBITMQ_RECONNECT",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setBaseRabbitMQEnv(t)
+			t.Setenv(tt.envVar, "yes")
+
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Fatal("NewRabbitMQConfigWithPrefix should panic for malformed bool")
+				}
+				msg, ok := r.(string)
+				if !ok || !strings.Contains(msg, tt.wantInPanic) {
+					t.Errorf("panic = %v, want it to name %s", r, tt.wantInPanic)
+				}
+			}()
+
+			NewRabbitMQConfigWithPrefix(tt.prefix)
+		})
 	}
 }
 

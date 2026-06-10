@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.52.0
+
+Additive release, no breaking API changes.
+
+**Behavior change** (review before upgrading): boolean environment
+variables (`GetEnvBool` callers such as `COOKIE_SECURE` and `S3_USE_SSL`,
+and the `RABBITMQ_*` booleans) now accept only case-insensitive
+true/false/1/0 with surrounding whitespace ignored. Malformed values
+(e.g. `yes`, `on`, `truex`) previously read
+silently as false and now panic at startup, matching the strictness of
+numeric and duration parsing. Empty or whitespace-only values keep the
+default as before.
+
+**Additive**:
+
+- `queue.WillRetry(delivery, maxRetries)` - reports whether a delivery that
+  fails with a transient error will be retried (true) or dead-lettered
+  (false). The consumer's own routing decision uses the same function, so
+  handler-side bookkeeping cannot drift from it. Errors matching
+  `queue.ErrPermanent` go to the DLQ regardless.
+- Handler panics are now recovered instead of crashing the process: logged
+  at error level with the stack, converted to a transient handler error,
+  and routed through the normal retry ladder to the DLQ. Previously a
+  deterministically panicking message crash-looped the worker because
+  broker redelivery, unlike retry-queue republishing, never increments
+  the retry count.
+- `database.NewPgxPool(ctx, cfg, appName, opts...)` - pgx connection pool
+  built from the shared `config.DatabaseConfig` with a connectivity ping.
+  Defaults: MaxConns 10, MinConns 2, MaxConnLifetime 1h, MaxConnIdleTime
+  10m, HealthCheckPeriod 30s, sslmode "disable" when unset - production
+  should set DB_SSLMODE=require, as with the GORM helper. Sizing per
+  service via `database.WithPoolSize(maxConns, minConns)`; options receive
+  the `*pgxpool.Config` and may change any field.
+- `health.NewPgxChecker(pool)` - PostgreSQL health checker for pgx pools,
+  reporting under the same "postgres" name as the GORM checker (register
+  one or the other). Unlike earlier service-local copies, a nil pool reports
+  unhealthy from Check instead of panicking in the constructor, matching
+  the other checkers.
+- `github.com/jackc/pgx/v5` is now a direct dependency.
+
 ## v0.51.0
 
 Queue stack upgrade for long-running workers.

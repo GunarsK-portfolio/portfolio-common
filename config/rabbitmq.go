@@ -146,12 +146,15 @@ type prefixedEnv struct {
 }
 
 // lookup returns the value and the name of the variable it was actually read
-// from: the prefixed name when set, otherwise the un-prefixed fallback. The
-// resolved name keeps error messages accurate for both forms.
+// from: the prefixed name when set, otherwise the un-prefixed fallback. A
+// prefixed value that is empty or whitespace-only counts as unset and falls
+// through to the un-prefixed name. Values are returned raw (not trimmed), so
+// whitespace-significant values like passwords survive. The resolved name
+// keeps error messages accurate for both forms.
 func (e prefixedEnv) lookup(key string) (value, varName string) {
 	if e.prefix != "" {
 		name := e.prefix + key
-		if v := os.Getenv(name); v != "" {
+		if v := os.Getenv(name); strings.TrimSpace(v) != "" {
 			return v, name
 		}
 	}
@@ -185,12 +188,21 @@ func (e prefixedEnv) requiredInt(key string) int {
 	return intVal
 }
 
+// bool parses the accepted boolean forms (case-insensitive true/false/1/0,
+// surrounding whitespace ignored) and panics on anything else, naming the
+// resolved variable, so a typo cannot silently flip a flag. Empty or
+// whitespace-only keeps the default.
 func (e prefixedEnv) bool(key string, defaultValue bool) bool {
-	v, _ := e.lookup(key)
+	v, varName := e.lookup(key)
+	v = strings.TrimSpace(v)
 	if v == "" {
 		return defaultValue
 	}
-	return strings.EqualFold(v, "true") || v == "1"
+	b, ok := parseBool(v)
+	if !ok {
+		panic(fmt.Sprintf("Invalid boolean value for %s: %q (accepted: true, false, 1, 0)", varName, v))
+	}
+	return b
 }
 
 func (e prefixedEnv) int(key string, defaultValue int) int {

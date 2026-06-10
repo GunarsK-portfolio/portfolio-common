@@ -11,8 +11,10 @@ const (
 )
 
 // MetricsRecorder receives queue events for instrumentation. Implementations
-// must be safe for concurrent use. The metrics package provides a Prometheus
-// implementation (metrics.QueueMetrics); pass it via WithPublisherMetrics /
+// must be safe for concurrent use and must not panic - recorder calls run on
+// the publish and consume paths and, unlike message handlers, are not
+// recovered. The metrics package provides a Prometheus implementation
+// (metrics.QueueMetrics); pass it via WithPublisherMetrics /
 // WithConsumerMetrics. When no recorder is configured, events are discarded.
 type MetricsRecorder interface {
 	// RecordPublish is called after every publish attempt. queue is the
