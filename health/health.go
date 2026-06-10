@@ -23,9 +23,10 @@ const (
 
 // CheckResult represents the result of a single health check
 type CheckResult struct {
-	Status  Status `json:"status"`
-	Latency string `json:"latency,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Status  Status         `json:"status"`
+	Latency string         `json:"latency,omitempty"`
+	Error   string         `json:"error,omitempty"`
+	Details map[string]any `json:"details,omitempty"`
 }
 
 // Checker is the interface for health check implementations

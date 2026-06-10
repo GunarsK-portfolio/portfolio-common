@@ -32,9 +32,24 @@ func TestGetRetryCount(t *testing.T) {
 			expected: 0,
 		},
 		{
+			name:     "header with int8 value",
+			headers:  amqp.Table{RetryCountHeader: int8(4)},
+			expected: 4,
+		},
+		{
+			name:     "header with int16 value",
+			headers:  amqp.Table{RetryCountHeader: int16(6)},
+			expected: 6,
+		},
+		{
 			name:     "header with int32 value",
 			headers:  amqp.Table{RetryCountHeader: int32(3)},
 			expected: 3,
+		},
+		{
+			name:     "header with negative value returns 0",
+			headers:  amqp.Table{RetryCountHeader: int32(-2)},
+			expected: 0,
 		},
 		{
 			name:     "header with int64 value",
@@ -110,6 +125,21 @@ func TestConsumerErrorDefinitions(t *testing.T) {
 			name:    "ErrNilPublisher",
 			err:     ErrNilPublisher,
 			wantMsg: "publisher is required",
+		},
+		{
+			name:    "ErrAlreadyConsuming",
+			err:     ErrAlreadyConsuming,
+			wantMsg: "consumer is already consuming",
+		},
+		{
+			name:    "ErrDeliveryChannelClosed",
+			err:     ErrDeliveryChannelClosed,
+			wantMsg: "delivery channel closed",
+		},
+		{
+			name:    "ErrReconnectFailed",
+			err:     ErrReconnectFailed,
+			wantMsg: "reconnect attempts exhausted",
 		},
 	}
 

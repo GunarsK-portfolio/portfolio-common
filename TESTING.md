@@ -57,12 +57,12 @@ go test -v ./health/
 | Constructor | 2 | NewPostgresChecker, Name |
 | Error Handling | 1 | Nil database |
 
-**`health/rabbitmq_test.go`** - 3 tests
+**`health/rabbitmq_test.go`** - 7 tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
-| Constructor | 2 | NewRabbitMQChecker, Name |
-| Error Handling | 1 | Nil connection |
+| Constructor | 4 | NewRabbitMQChecker, provider variant, QueueDepthChecker, Name |
+| Error Handling | 3 | Nil connection, nil provider |
 
 **`health/redis_test.go`** - 3 tests
 
@@ -78,7 +78,7 @@ go test -v ./health/
 | Constructor | 2 | NewMinIOChecker, Name |
 | Error Handling | 2 | Nil client with/without bucket |
 
-**`queue/publisher_test.go`** - 10 tests
+**`queue/publisher_test.go`** - 14 tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
@@ -86,24 +86,55 @@ go test -v ./health/
 | Error Definitions | 1 | All publisher errors |
 | Validation | 1 | PublishToRetry bounds checking |
 | Close | 2 | Idempotent close behavior |
+| Message Defaults | 1 | Persistent delivery, JSON content type |
+| Jitter | 3 | jitteredExpiration bounds, disabled cases, clamping |
 | Interface | 1 | Publisher interface compliance |
 
 **`queue/consumer_test.go`** - 6 tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
-| GetRetryCount | 1 | Header parsing (9 sub-tests) |
+| GetRetryCount | 1 | Header parsing (13 sub-tests, incl. int8/int16/negative) |
 | Constants | 1 | RetryCountHeader value |
 | Error Definitions | 1 | All consumer errors |
 | Close | 2 | Idempotent close behavior |
 | Interface | 1 | Consumer interface compliance |
 
-**`config/rabbitmq_test.go`** - 8 tests
+**`queue/permanent_test.go`** - 7 tests
+
+| Category | Tests | Coverage |
+| -------- | ----- | -------- |
+| Permanent | 7 | nil handling, errors.Is matching, wrapping, Unwrap |
+
+**`queue/connection_test.go`** - 3 tests
+
+| Category | Tests | Coverage |
+| -------- | ----- | -------- |
+| Backoff | 2 | Exponential growth, cap, jitter bounds, defaults |
+| Helpers | 1 | closeError formatting |
+
+**`queue/integration_test.go`** - 13 tests (RabbitMQ via testcontainers)
+
+| Category | Tests | Coverage |
+| -------- | ----- | -------- |
+| Happy Path | 2 | Publish/consume, correlation ID propagation |
+| Retry/DLQ | 3 | Retry ladder counts, max retries to DLQ, permanent to DLQ |
+| Confirms | 1 | Publisher confirm mode |
+| Reconnection | 2 | Publisher and consumer recovery after connection loss |
+| Shutdown | 2 | Requeue without burning retry, Close waits for in-flight |
+| Concurrency | 1 | Parallel handlers reach configured concurrency |
+| Misc | 2 | ErrAlreadyConsuming, jittered per-message TTL |
+
+Integration tests are skipped with `-short` or when Docker is unavailable.
+
+**`config/rabbitmq_test.go`** - 13 tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
 | URL | 1 | URL generation with credentials |
 | RetryDelays | 3 | Defaults, parsing, panic cases |
+| WithDefaults | 2 | Zero-value normalization, explicit values kept |
+| Prefixed Env | 5 | Prefix override, fallback, defaults, new fields, jitter validation |
 | Consumer Settings | 2 | PrefetchCount, ConsumerTag fields |
 
 **`middleware/permission_test.go`** - 15 tests

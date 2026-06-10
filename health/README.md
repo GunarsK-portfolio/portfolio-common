@@ -12,7 +12,9 @@ healthAgg := health.NewAggregator(3 * time.Second)
 
 // Register checkers
 healthAgg.Register(health.NewPostgresChecker(db))
-healthAgg.Register(health.NewRabbitMQChecker(conn))
+healthAgg.Register(health.NewRabbitMQCheckerWithProvider(publisher.Connection))
+healthAgg.Register(
+    health.NewQueueDepthChecker(publisher.Connection, publisher.DLQName(), 0))
 healthAgg.Register(health.NewRedisChecker(client))
 healthAgg.Register(health.NewMinIOChecker(client, "bucket"))
 
@@ -27,7 +29,12 @@ router.GET("/health", healthAgg.Handler())
   "status": "healthy",
   "checks": {
     "postgres": { "status": "healthy", "latency": "1.2ms" },
-    "rabbitmq": { "status": "healthy", "latency": "0.3ms" }
+    "rabbitmq": { "status": "healthy", "latency": "0.3ms" },
+    "queue:contact_messages_dlq": {
+      "status": "healthy",
+      "latency": "0.8ms",
+      "details": { "messages": 0 }
+    }
   }
 }
 ```
@@ -40,7 +47,15 @@ router.GET("/health", healthAgg.Handler())
 ## Available Checkers
 
 - `NewPostgresChecker(db *gorm.DB)` - PostgreSQL ping
-- `NewRabbitMQChecker(conn *amqp.Connection)` - Connection status
+- `NewRabbitMQChecker(conn *amqp.Connection)` - Connection status (fixed
+  connection; goes stale if the owner reconnects)
+- `NewRabbitMQCheckerWithProvider(provider func() *amqp.Connection)` -
+  Connection status resolved on every check; use with the queue package's
+  auto-reconnecting publisher/consumer (`publisher.Connection`)
+- `NewQueueDepthChecker(provider, queueName, degradedThreshold)` - Reports a
+  queue's message count under `details.messages` (DLQ visibility). With
+  `degradedThreshold > 0` it turns degraded at that depth; note the default
+  handler returns 503 for degraded
 - `NewRedisChecker(client *redis.Client)` - PING command
 - `NewMinIOChecker(client *minio.Client, bucket string)` - Bucket check
 
