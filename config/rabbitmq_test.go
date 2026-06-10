@@ -307,6 +307,20 @@ func TestNewRabbitMQConfigWithPrefix_PrefixedOverridesBase(t *testing.T) {
 	}
 }
 
+func TestNewRabbitMQConfigWithPrefix_WhitespacePrefixedFallsBack(t *testing.T) {
+	setBaseRabbitMQEnv(t)
+	t.Setenv("RABBITMQ_QUEUE", "base_queue")
+	// A whitespace-only prefixed value counts as unset and must fall back to
+	// the un-prefixed variable, not short-circuit to the default.
+	t.Setenv("AI_RABBITMQ_QUEUE", "   ")
+
+	cfg := NewRabbitMQConfigWithPrefix("AI_")
+
+	if cfg.Queue != "base_queue" {
+		t.Errorf("Queue = %q, want fallback %q", cfg.Queue, "base_queue")
+	}
+}
+
 func TestNewRabbitMQConfig_Defaults(t *testing.T) {
 	setBaseRabbitMQEnv(t)
 

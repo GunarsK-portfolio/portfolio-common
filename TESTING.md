@@ -57,19 +57,20 @@ go test -v ./health/
 | Constructor | 2 | NewPostgresChecker, Name |
 | Error Handling | 1 | Nil database |
 
-**`database/pgx_test.go`** - 6 tests
+**`database/pgx_test.go`** - 7 tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
 | Config Builder | 4 | Connection fields, defaults, application_name, sslmode fallback |
+| NewPgxPool | 1 | Ping failure returns wrapped error, no pool leaked |
 | Options | 2 | WithPoolSize, option overrides defaults |
 
-**`health/pgx_test.go`** - 3 tests
+**`health/pgx_test.go`** - 4 tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
 | Constructor | 2 | NewPgxChecker, Name |
-| Error Handling | 1 | Nil pool |
+| Error Handling | 2 | Nil pool; ping failure reports unhealthy with latency |
 
 **`health/rabbitmq_test.go`** - 7 tests
 
@@ -144,14 +145,14 @@ go test -v ./health/
 
 Integration tests are skipped with `-short` or when Docker is unavailable.
 
-**`config/rabbitmq_test.go`** - 15 tests
+**`config/rabbitmq_test.go`** - 16 tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
 | URL | 1 | URL generation with credentials |
 | RetryDelays | 3 | Defaults, parsing, panic cases |
 | WithDefaults | 2 | Zero-value normalization, explicit values kept |
-| Prefixed Env | 5 | Prefix override, fallback, defaults, new fields, jitter validation |
+| Prefixed Env | 6 | Prefix override, fallback (incl. whitespace-only), defaults, new fields, jitter validation |
 | Bool Parsing | 2 | Accepted forms incl. trimming; malformed values panic naming the resolved variable |
 | Consumer Settings | 2 | PrefetchCount, ConsumerTag fields |
 

@@ -8,7 +8,7 @@ Additive release, no breaking API changes.
 variables (`GetEnvBool` callers such as `COOKIE_SECURE` and `S3_USE_SSL`,
 and the `RABBITMQ_*` booleans) now accept only case-insensitive
 true/false/1/0 with surrounding whitespace ignored. Malformed values
-(e.g. `yes`, `on`, `TRUE` with a stray character) previously read
+(e.g. `yes`, `on`, `truex`) previously read
 silently as false and now panic at startup, matching the strictness of
 numeric and duration parsing. Empty or whitespace-only values keep the
 default as before.
@@ -24,11 +24,13 @@ default as before.
   at error level with the stack, converted to a transient handler error,
   and routed through the normal retry ladder to the DLQ. Previously a
   deterministically panicking message crash-looped the worker because
-  redelivery never increments the retry count.
+  broker redelivery, unlike retry-queue republishing, never increments
+  the retry count.
 - `database.NewPgxPool(ctx, cfg, appName, opts...)` - pgx connection pool
   built from the shared `config.DatabaseConfig` with a connectivity ping.
   Defaults: MaxConns 10, MinConns 2, MaxConnLifetime 1h, MaxConnIdleTime
-  10m, HealthCheckPeriod 30s, sslmode "disable" when unset. Sizing per
+  10m, HealthCheckPeriod 30s, sslmode "disable" when unset - production
+  should set DB_SSLMODE=require, as with the GORM helper. Sizing per
   service via `database.WithPoolSize(maxConns, minConns)`; options receive
   the `*pgxpool.Config` and may change any field.
 - `health.NewPgxChecker(pool)` - PostgreSQL health checker for pgx pools,

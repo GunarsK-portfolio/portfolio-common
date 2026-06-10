@@ -1,6 +1,8 @@
 package database
 
 import (
+	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -123,6 +125,36 @@ func TestBuildPgxConfig_SSLMode(t *testing.T) {
 	}
 	if poolCfg.ConnConfig.TLSConfig == nil {
 		t.Error("SSLMode require should set a TLS config")
+	}
+}
+
+// =============================================================================
+// NewPgxPool Tests
+// =============================================================================
+
+func TestNewPgxPool_PingFailureReturnsError(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Port 1 on loopback has no listener; the connectivity ping must fail
+	// and surface a wrapped error instead of returning a broken pool.
+	cfg := testDatabaseConfig()
+	cfg.Host = "127.0.0.1"
+	cfg.Port = 1
+
+	pool, err := NewPgxPool(ctx, cfg, "test")
+
+	if err == nil {
+		if pool != nil {
+			pool.Close()
+		}
+		t.Fatal("NewPgxPool should fail when the database is unreachable")
+	}
+	if !strings.Contains(err.Error(), "ping database") {
+		t.Errorf("error = %v, want it to wrap the ping failure", err)
+	}
+	if pool != nil {
+		t.Error("pool should be nil on error")
 	}
 }
 

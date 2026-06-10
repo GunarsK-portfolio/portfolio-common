@@ -146,12 +146,15 @@ type prefixedEnv struct {
 }
 
 // lookup returns the value and the name of the variable it was actually read
-// from: the prefixed name when set, otherwise the un-prefixed fallback. The
-// resolved name keeps error messages accurate for both forms.
+// from: the prefixed name when set, otherwise the un-prefixed fallback. A
+// prefixed value that is empty or whitespace-only counts as unset and falls
+// through to the un-prefixed name. Values are returned raw (not trimmed), so
+// whitespace-significant values like passwords survive. The resolved name
+// keeps error messages accurate for both forms.
 func (e prefixedEnv) lookup(key string) (value, varName string) {
 	if e.prefix != "" {
 		name := e.prefix + key
-		if v := os.Getenv(name); v != "" {
+		if v := os.Getenv(name); strings.TrimSpace(v) != "" {
 			return v, name
 		}
 	}
