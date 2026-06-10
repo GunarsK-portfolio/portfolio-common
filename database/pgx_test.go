@@ -1,0 +1,158 @@
+package database
+
+import (
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/GunarsK-portfolio/portfolio-common/config"
+)
+
+func testDatabaseConfig() config.DatabaseConfig {
+	return config.DatabaseConfig{
+		Host:     "localhost",
+		Port:     5432,
+		User:     "portfolio",
+		Password: "secret",
+		Name:     "portfolio",
+		SSLMode:  "disable",
+	}
+}
+
+// =============================================================================
+// buildPgxConfig Tests
+// =============================================================================
+
+func TestBuildPgxConfig_ConnectionFields(t *testing.T) {
+	cfg := testDatabaseConfig()
+	cfg.Password = "p@ss:word/123"
+
+	poolCfg, err := buildPgxConfig(cfg, "worker")
+	if err != nil {
+		t.Fatalf("buildPgxConfig() error = %v", err)
+	}
+
+	conn := poolCfg.ConnConfig
+	if conn.Host != "localhost" {
+		t.Errorf("Host = %q, want localhost", conn.Host)
+	}
+	if conn.Port != 5432 {
+		t.Errorf("Port = %d, want 5432", conn.Port)
+	}
+	if conn.Database != "portfolio" {
+		t.Errorf("Database = %q, want portfolio", conn.Database)
+	}
+	if conn.User != "portfolio" {
+		t.Errorf("User = %q, want portfolio", conn.User)
+	}
+	if conn.Password != "p@ss:word/123" {
+		t.Errorf("Password = %q, special characters were not preserved", conn.Password)
+	}
+}
+
+func TestBuildPgxConfig_Defaults(t *testing.T) {
+	poolCfg, err := buildPgxConfig(testDatabaseConfig(), "worker")
+	if err != nil {
+		t.Fatalf("buildPgxConfig() error = %v", err)
+	}
+
+	if poolCfg.MaxConns != 10 {
+		t.Errorf("MaxConns = %d, want 10", poolCfg.MaxConns)
+	}
+	if poolCfg.MinConns != 2 {
+		t.Errorf("MinConns = %d, want 2", poolCfg.MinConns)
+	}
+	if poolCfg.MaxConnLifetime != time.Hour {
+		t.Errorf("MaxConnLifetime = %v, want 1h", poolCfg.MaxConnLifetime)
+	}
+	if poolCfg.MaxConnIdleTime != 10*time.Minute {
+		t.Errorf("MaxConnIdleTime = %v, want 10m", poolCfg.MaxConnIdleTime)
+	}
+	if poolCfg.HealthCheckPeriod != 30*time.Second {
+		t.Errorf("HealthCheckPeriod = %v, want 30s", poolCfg.HealthCheckPeriod)
+	}
+}
+
+func TestBuildPgxConfig_ApplicationName(t *testing.T) {
+	tests := []struct {
+		name    string
+		appName string
+		want    string
+		wantSet bool
+	}{
+		{"set when provided", "messaging-worker", "messaging-worker", true},
+		{"omitted when empty", "", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			poolCfg, err := buildPgxConfig(testDatabaseConfig(), tt.appName)
+			if err != nil {
+				t.Fatalf("buildPgxConfig() error = %v", err)
+			}
+
+			got, ok := poolCfg.ConnConfig.RuntimeParams["application_name"]
+			if ok != tt.wantSet {
+				t.Fatalf("application_name set = %v, want %v", ok, tt.wantSet)
+			}
+			if ok && got != tt.want {
+				t.Errorf("application_name = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildPgxConfig_SSLMode(t *testing.T) {
+	// Empty SSLMode falls back to disable (no TLS).
+	cfg := testDatabaseConfig()
+	cfg.SSLMode = ""
+	poolCfg, err := buildPgxConfig(cfg, "worker")
+	if err != nil {
+		t.Fatalf("buildPgxConfig() error = %v", err)
+	}
+	if poolCfg.ConnConfig.TLSConfig != nil {
+		t.Error("empty SSLMode should fall back to disable (nil TLSConfig)")
+	}
+
+	// Explicit require enables TLS.
+	cfg.SSLMode = "require"
+	poolCfg, err = buildPgxConfig(cfg, "worker")
+	if err != nil {
+		t.Fatalf("buildPgxConfig() error = %v", err)
+	}
+	if poolCfg.ConnConfig.TLSConfig == nil {
+		t.Error("SSLMode require should set a TLS config")
+	}
+}
+
+// =============================================================================
+// Option Tests
+// =============================================================================
+
+func TestWithPoolSize(t *testing.T) {
+	poolCfg, err := buildPgxConfig(testDatabaseConfig(), "api", WithPoolSize(25, 5))
+	if err != nil {
+		t.Fatalf("buildPgxConfig() error = %v", err)
+	}
+
+	if poolCfg.MaxConns != 25 {
+		t.Errorf("MaxConns = %d, want 25", poolCfg.MaxConns)
+	}
+	if poolCfg.MinConns != 5 {
+		t.Errorf("MinConns = %d, want 5", poolCfg.MinConns)
+	}
+}
+
+func TestPgxPoolOption_OverridesDefaults(t *testing.T) {
+	custom := func(c *pgxpool.Config) { c.MaxConnLifetime = 2 * time.Hour }
+
+	poolCfg, err := buildPgxConfig(testDatabaseConfig(), "worker", custom)
+	if err != nil {
+		t.Fatalf("buildPgxConfig() error = %v", err)
+	}
+
+	if poolCfg.MaxConnLifetime != 2*time.Hour {
+		t.Errorf("MaxConnLifetime = %v, want 2h (option should override default)", poolCfg.MaxConnLifetime)
+	}
+}

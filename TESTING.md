@@ -57,6 +57,20 @@ go test -v ./health/
 | Constructor | 2 | NewPostgresChecker, Name |
 | Error Handling | 1 | Nil database |
 
+**`database/pgx_test.go`** - 6 tests
+
+| Category | Tests | Coverage |
+| -------- | ----- | -------- |
+| Config Builder | 4 | Connection fields, defaults, application_name, sslmode fallback |
+| Options | 2 | WithPoolSize, option overrides defaults |
+
+**`health/pgx_test.go`** - 3 tests
+
+| Category | Tests | Coverage |
+| -------- | ----- | -------- |
+| Constructor | 2 | NewPgxChecker, Name |
+| Error Handling | 1 | Nil pool |
+
 **`health/rabbitmq_test.go`** - 7 tests
 
 | Category | Tests | Coverage |
@@ -90,11 +104,13 @@ go test -v ./health/
 | Jitter | 3 | jitteredExpiration bounds, disabled cases, clamping |
 | Interface | 1 | Publisher interface compliance |
 
-**`queue/consumer_test.go`** - 6 tests
+**`queue/consumer_test.go`** - 9 tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
 | GetRetryCount | 1 | Header parsing (13 sub-tests, incl. int8/int16/negative) |
+| WillRetry | 1 | Retry-vs-DLQ predicate (6 sub-tests, boundary cases) |
+| Panic Recovery | 2 | invokeHandler converts panics, passes results through |
 | Constants | 1 | RetryCountHeader value |
 | Error Definitions | 1 | All consumer errors |
 | Close | 2 | Idempotent close behavior |
@@ -113,12 +129,13 @@ go test -v ./health/
 | Backoff | 2 | Exponential growth, cap, jitter bounds, defaults |
 | Helpers | 1 | closeError formatting |
 
-**`queue/integration_test.go`** - 13 tests (RabbitMQ via testcontainers)
+**`queue/integration_test.go`** - 14 tests (RabbitMQ via testcontainers)
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
 | Happy Path | 2 | Publish/consume, correlation ID propagation |
 | Retry/DLQ | 3 | Retry ladder counts, max retries to DLQ, permanent to DLQ |
+| Panic Recovery | 1 | Panic rides retry ladder to DLQ, consumption continues |
 | Confirms | 1 | Publisher confirm mode |
 | Reconnection | 2 | Publisher and consumer recovery after connection loss |
 | Shutdown | 2 | Requeue without burning retry, Close waits for in-flight |

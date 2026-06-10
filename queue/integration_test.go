@@ -580,6 +580,60 @@ func TestIntegration_CloseWaitsForInflightHandler(t *testing.T) {
 }
 
 // =============================================================================
+// Panic Recovery
+// =============================================================================
+
+func TestIntegration_HandlerPanicRidesRetryLadderToDLQ(t *testing.T) {
+	cfg := integrationConfig(t, "it_panic", []time.Duration{200 * time.Millisecond})
+	pub := newTestPublisher(t, cfg)
+	consumer := newTestConsumer(t, cfg, pub)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	var panics atomic.Int32
+	handled := make(chan string, 1)
+	go func() {
+		_ = consumer.Consume(ctx, func(_ context.Context, d amqp.Delivery) error {
+			var payload map[string]string
+			_ = json.Unmarshal(d.Body, &payload)
+			if payload["job"] == "panics" {
+				panics.Add(1)
+				panic("boom")
+			}
+			handled <- payload["job"]
+			return nil
+		})
+	}()
+
+	if err := pub.Publish(ctx, map[string]string{"job": "panics"}); err != nil {
+		t.Fatalf("Publish: %v", err)
+	}
+
+	// The panic must not kill the process; the message rides the retry
+	// ladder (initial attempt + one retry) and lands in the DLQ.
+	waitFor(t, 30*time.Second, "panicking message to reach DLQ", func() bool {
+		return queueDepth(t, pub, pub.DLQName()) == 1
+	})
+	if got := panics.Load(); got != 2 {
+		t.Errorf("handler panics = %d, want 2 (initial + one retry)", got)
+	}
+
+	// Consumption continues after the panics.
+	if err := pub.Publish(ctx, map[string]string{"job": "ok"}); err != nil {
+		t.Fatalf("Publish after panic: %v", err)
+	}
+	select {
+	case got := <-handled:
+		if got != "ok" {
+			t.Errorf("handled %q, want ok", got)
+		}
+	case <-ctx.Done():
+		t.Fatal("message after panic was not consumed before timeout")
+	}
+}
+
+// =============================================================================
 // Concurrency
 // =============================================================================
 
