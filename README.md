@@ -28,7 +28,7 @@ Shared Go package for common code across portfolio microservices.
 | [metrics](metrics/) | Prometheus metrics collection |
 | [server](server/) | HTTP server with graceful shutdown |
 | [utils](utils/) | Common utility functions |
-| [queue](queue/) | RabbitMQ publishing with retry/DLQ |
+| [queue](queue/) | RabbitMQ pub/sub with reconnection, retries, and DLQ |
 | [health](health/) | Dependency health checking |
 
 ## Quick Start

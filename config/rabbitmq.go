@@ -110,14 +110,9 @@ func NewRabbitMQConfig() RabbitMQConfig {
 func NewRabbitMQConfigWithPrefix(prefix string) RabbitMQConfig {
 	env := prefixedEnv{prefix: prefix}
 
-	port, err := strconv.Atoi(env.required("RABBITMQ_PORT"))
-	if err != nil {
-		panic(fmt.Sprintf("Invalid %sRABBITMQ_PORT: %v", prefix, err))
-	}
-
 	cfg := RabbitMQConfig{
 		Host:                  env.required("RABBITMQ_HOST"),
-		Port:                  port,
+		Port:                  env.requiredInt("RABBITMQ_PORT"),
 		User:                  env.required("RABBITMQ_USER"),
 		Password:              env.required("RABBITMQ_PASSWORD"),
 		Exchange:              env.get("RABBITMQ_EXCHANGE", "contact_messages"),
@@ -150,33 +145,48 @@ type prefixedEnv struct {
 	prefix string
 }
 
-// lookup returns the prefixed value if set, otherwise the un-prefixed value.
-func (e prefixedEnv) lookup(key string) string {
+// lookup returns the value and the name of the variable it was actually read
+// from: the prefixed name when set, otherwise the un-prefixed fallback. The
+// resolved name keeps error messages accurate for both forms.
+func (e prefixedEnv) lookup(key string) (value, varName string) {
 	if e.prefix != "" {
-		if v := os.Getenv(e.prefix + key); v != "" {
-			return v
+		name := e.prefix + key
+		if v := os.Getenv(name); v != "" {
+			return v, name
 		}
 	}
-	return os.Getenv(key)
+	return os.Getenv(key), key
 }
 
 func (e prefixedEnv) get(key, defaultValue string) string {
-	if v := e.lookup(key); v != "" {
+	if v, _ := e.lookup(key); v != "" {
 		return v
 	}
 	return defaultValue
 }
 
 func (e prefixedEnv) required(key string) string {
-	v := e.lookup(key)
+	v, _ := e.lookup(key)
 	if v == "" {
 		panic(fmt.Sprintf("Required environment variable %s%s (or %s) is not set", e.prefix, key, key))
 	}
 	return v
 }
 
+func (e prefixedEnv) requiredInt(key string) int {
+	v, varName := e.lookup(key)
+	if v == "" {
+		panic(fmt.Sprintf("Required environment variable %s%s (or %s) is not set", e.prefix, key, key))
+	}
+	intVal, err := strconv.Atoi(v)
+	if err != nil {
+		panic(fmt.Sprintf("Invalid integer value for %s: %v", varName, err))
+	}
+	return intVal
+}
+
 func (e prefixedEnv) bool(key string, defaultValue bool) bool {
-	v := e.lookup(key)
+	v, _ := e.lookup(key)
 	if v == "" {
 		return defaultValue
 	}
@@ -184,37 +194,37 @@ func (e prefixedEnv) bool(key string, defaultValue bool) bool {
 }
 
 func (e prefixedEnv) int(key string, defaultValue int) int {
-	v := e.lookup(key)
+	v, varName := e.lookup(key)
 	if v == "" {
 		return defaultValue
 	}
 	intVal, err := strconv.Atoi(v)
 	if err != nil {
-		panic(fmt.Sprintf("Invalid integer value for %s%s: %v", e.prefix, key, err))
+		panic(fmt.Sprintf("Invalid integer value for %s: %v", varName, err))
 	}
 	return intVal
 }
 
 func (e prefixedEnv) float(key string, defaultValue float64) float64 {
-	v := e.lookup(key)
+	v, varName := e.lookup(key)
 	if v == "" {
 		return defaultValue
 	}
 	floatVal, err := strconv.ParseFloat(v, 64)
 	if err != nil {
-		panic(fmt.Sprintf("Invalid float value for %s%s: %v", e.prefix, key, err))
+		panic(fmt.Sprintf("Invalid float value for %s: %v", varName, err))
 	}
 	return floatVal
 }
 
 func (e prefixedEnv) duration(key string, defaultValue time.Duration) time.Duration {
-	v := e.lookup(key)
+	v, varName := e.lookup(key)
 	if v == "" {
 		return defaultValue
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil {
-		panic(fmt.Sprintf("Invalid duration value for %s%s: %v", e.prefix, key, err))
+		panic(fmt.Sprintf("Invalid duration value for %s: %v", varName, err))
 	}
 	return d
 }

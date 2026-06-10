@@ -52,6 +52,7 @@ type RabbitMQPublisher struct {
 	metrics     MetricsRecorder
 	stopCh      chan struct{}
 	stopOnce    sync.Once
+	inflight    sync.WaitGroup // publishes in progress, including confirm waits
 }
 
 // RetryQueues returns a copy of the retry queue names for use by consumers
@@ -108,7 +109,7 @@ func NewRabbitMQPublisher(cfg config.RabbitMQConfig, opts ...PublisherOption) (*
 	p.channel = ch
 	p.retryQueues = retryQueues
 
-	if !cfg.DisableReconnect {
+	if !p.cfg.DisableReconnect {
 		go p.supervise(conn, ch)
 	}
 
@@ -266,6 +267,10 @@ func (p *RabbitMQPublisher) doPublish(ctx context.Context, exchange, routingKey 
 		p.mu.Unlock()
 		return fmt.Errorf("%w", ErrPublisherClosed)
 	}
+	// Registered under the lock so Close cannot start tearing down between
+	// the closed check and the publish.
+	p.inflight.Add(1)
+	defer p.inflight.Done()
 
 	var confirmation *amqp.DeferredConfirmation
 	var err error
@@ -389,14 +394,20 @@ func (p *RabbitMQPublisher) Close() error {
 	})
 
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	if p.closed {
+		p.mu.Unlock()
 		return nil
 	}
 	p.closed = true
+	ch, conn := p.channel, p.conn
+	p.mu.Unlock()
 
-	if err := closeResources(p.channel, p.conn); err != nil {
+	// Wait for in-flight publishes (including publisher-confirm waits, which
+	// happen outside the mutex) so closing the channel does not NACK
+	// confirmations for messages the broker already accepted.
+	p.inflight.Wait()
+
+	if err := closeResources(ch, conn); err != nil {
 		return fmt.Errorf("%w: %w", ErrCloseFailed, err)
 	}
 	return nil

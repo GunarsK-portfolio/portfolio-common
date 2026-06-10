@@ -83,7 +83,9 @@ func NewRabbitMQConsumer(
 		opt(c)
 	}
 
-	conn, err := dial(cfg)
+	// Dial with the normalized config so the initial connection matches the
+	// reconnect path in setupConsume.
+	conn, err := dial(c.config)
 	if err != nil {
 		return nil, err
 	}
