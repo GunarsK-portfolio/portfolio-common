@@ -2,7 +2,18 @@
 
 ## v0.52.0
 
-Additive release, no breaking changes.
+Additive release, no breaking API changes.
+
+**Behavior change** (review before upgrading): boolean environment
+variables (`GetEnvBool` callers such as `COOKIE_SECURE` and `S3_USE_SSL`,
+and the `RABBITMQ_*` booleans) now accept only case-insensitive
+true/false/1/0 with surrounding whitespace ignored. Malformed values
+(e.g. `yes`, `on`, `TRUE` with a stray character) previously read
+silently as false and now panic at startup, matching the strictness of
+numeric and duration parsing. Empty or whitespace-only values keep the
+default as before.
+
+**Additive**:
 
 - `queue.WillRetry(delivery, maxRetries)` - reports whether a delivery that
   fails with a transient error will be retried (true) or dead-lettered

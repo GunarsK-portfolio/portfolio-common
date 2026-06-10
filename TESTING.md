@@ -144,7 +144,7 @@ go test -v ./health/
 
 Integration tests are skipped with `-short` or when Docker is unavailable.
 
-**`config/rabbitmq_test.go`** - 13 tests
+**`config/rabbitmq_test.go`** - 15 tests
 
 | Category | Tests | Coverage |
 | -------- | ----- | -------- |
@@ -152,7 +152,14 @@ Integration tests are skipped with `-short` or when Docker is unavailable.
 | RetryDelays | 3 | Defaults, parsing, panic cases |
 | WithDefaults | 2 | Zero-value normalization, explicit values kept |
 | Prefixed Env | 5 | Prefix override, fallback, defaults, new fields, jitter validation |
+| Bool Parsing | 2 | Accepted forms incl. trimming; malformed values panic naming the resolved variable |
 | Consumer Settings | 2 | PrefetchCount, ConsumerTag fields |
+
+**`config/helpers_test.go`** - 2 tests
+
+| Category | Tests | Coverage |
+| -------- | ----- | -------- |
+| GetEnvBool | 2 | Accepted forms, defaults, trimming (12 sub-tests); panics for yes/no/on/off/t/f |
 
 **`middleware/permission_test.go`** - 15 tests
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -26,12 +27,33 @@ func GetEnvRequired(key string) string {
 }
 
 // GetEnvBool returns environment variable as boolean or default if not set
+// (empty or whitespace-only counts as unset). Accepted values are
+// case-insensitive true/false/1/0 with surrounding whitespace ignored; any
+// other value panics at startup so a typo cannot silently flip a flag.
 func GetEnvBool(key string, defaultValue bool) bool {
-	val := GetEnv(key, "")
+	val := strings.TrimSpace(GetEnv(key, ""))
 	if val == "" {
 		return defaultValue
 	}
-	return strings.EqualFold(val, "true") || val == "1"
+	b, ok := parseBool(val)
+	if !ok {
+		panic(fmt.Sprintf("Invalid boolean value for %s: %q (accepted: true, false, 1, 0)", key, val))
+	}
+	return b
+}
+
+// parseBool interprets the accepted boolean forms: case-insensitive
+// true/false/1/0. ok is false for anything else. Deliberately narrower than
+// strconv.ParseBool: the single-letter t/f forms are cryptic in env files
+// and widen the accepted-typo surface.
+func parseBool(val string) (value, ok bool) {
+	switch strings.ToLower(val) {
+	case "true", "1":
+		return true, true
+	case "false", "0":
+		return false, true
+	}
+	return false, false
 }
 
 // GetEnvInt returns environment variable as integer or default if not set

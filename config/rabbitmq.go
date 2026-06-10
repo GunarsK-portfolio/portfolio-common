@@ -185,12 +185,21 @@ func (e prefixedEnv) requiredInt(key string) int {
 	return intVal
 }
 
+// bool parses the accepted boolean forms (case-insensitive true/false/1/0,
+// surrounding whitespace ignored) and panics on anything else, naming the
+// resolved variable, so a typo cannot silently flip a flag. Empty or
+// whitespace-only keeps the default.
 func (e prefixedEnv) bool(key string, defaultValue bool) bool {
-	v, _ := e.lookup(key)
+	v, varName := e.lookup(key)
+	v = strings.TrimSpace(v)
 	if v == "" {
 		return defaultValue
 	}
-	return strings.EqualFold(v, "true") || v == "1"
+	b, ok := parseBool(v)
+	if !ok {
+		panic(fmt.Sprintf("Invalid boolean value for %s: %q (accepted: true, false, 1, 0)", varName, v))
+	}
+	return b
 }
 
 func (e prefixedEnv) int(key string, defaultValue int) int {
