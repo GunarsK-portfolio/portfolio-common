@@ -33,10 +33,14 @@ backwards compatibility with Authorization header for API clients.
 After validation, access user info in handlers:
 
 ```go
-userID, _ := c.Get("user_id")    // int64
-username, _ := c.Get("username") // string
-ttl, _ := c.Get("token_ttl")     // int64
+claims, ok := middleware.GetClaims(c)
+// claims.UserID int64, claims.Username string,
+// claims.DisplayName string, claims.Scopes map[string]string
 ```
+
+The stored keys (`middleware.CtxKeyUserID` etc., including `CtxKeyTokenTTL`,
+which GetClaims does not expose) are unchanged, so existing direct `c.Get`
+callers keep working.
 
 ## SecurityMiddleware
 

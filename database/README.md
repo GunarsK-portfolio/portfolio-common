@@ -47,6 +47,29 @@ HealthCheckPeriod 30s, sslmode `disable` when the config leaves it empty.
 Options receive the `*pgxpool.Config` after defaults are applied and may
 change any field.
 
+## Audited SQL function calls
+
+For services following the "SQL functions own the logic" convention: each call
+runs `SELECT audit.set_context(...)` plus the function query in one pgx batch
+(one implicit transaction, one network round trip - see the `CallInto` doc
+comment for the semantics).
+
+```go
+auth := database.AuthContext{
+    UserID: 42, Username: "user", ClientIP: ip, UserAgent: ua,
+}
+
+row, err := database.CallJSON(ctx, pool, auth,
+    "SELECT heroes.get_hero($1)", id)
+deleted, err := database.CallBool(ctx, pool, auth,
+    "SELECT heroes.delete_hero($1)", id)
+err = database.CallDiscard(ctx, pool, auth,
+    "SELECT heroes.upsert_hero_avatar($1, $2)", id, key)
+```
+
+`CallInto(ctx, pool, auth, dest, query, args...)` is the generic form for
+other scan targets.
+
 ## Functions
 
 - `Connect(cfg PostgresConfig) (*gorm.DB, error)` - Connect to PostgreSQL via GORM
@@ -54,3 +77,5 @@ change any field.
 - `NewPgxPool(ctx, cfg, appName, opts...)` - Create a pgx connection pool
   from `config.DatabaseConfig`
 - `WithPoolSize(maxConns, minConns int32) PgxPoolOption` - Set pool sizing
+- `CallJSON` / `CallBool` / `CallDiscard` / `CallInto` - Audited single-row
+  SQL function calls (see above)

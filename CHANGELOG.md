@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.53.0
+
+Additive release, no breaking API changes.
+
+- `database.AuthContext` + `CallJSON` / `CallBool` / `CallDiscard` /
+  `CallInto` - audited single-row SQL function calls: each runs
+  `SELECT audit.set_context($1, $2, $3, $4)` plus the query in one pgx
+  batch (one implicit transaction, one network round trip). Replaces
+  per-service copies of the begin/set_context/query/commit plumbing.
+- `logger.NewFromEnv(serviceName)` - builds the logger from `LOG_LEVEL`,
+  `LOG_FORMAT`, and `LOG_SOURCE`. `LOG_SOURCE` goes through the strict
+  boolean parser, so a typo panics at startup instead of silently reading
+  as false.
+- `middleware.Claims` + `GetClaims(c)` - typed reader for the identity
+  values `ValidateToken` stores on the gin context. The key names are now
+  exported constants (`middleware.CtxKeyUserID` etc.) used by the writer
+  and every in-library reader (`RequirePermission`, `audit.GetUserID`,
+  the request logger), so the contract can no longer drift; existing
+  direct `c.Get` callers keep working unchanged.
+- `config.RedisConfig.TLS` - loaded from `REDIS_TLS` (default false),
+  mirroring `RabbitMQConfig.TLS`. Replaces service-local
+  environment-string compares for deciding Redis TLS. Services that
+  defaulted TLS on in production must set `REDIS_TLS=true` there (or keep
+  their own default) when adopting the field.
+
 ## v0.52.0
 
 Additive release, no breaking API changes.

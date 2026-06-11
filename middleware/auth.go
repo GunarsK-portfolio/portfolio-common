@@ -10,6 +10,40 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Gin context keys for the values ValidateToken stores.
+const (
+	CtxKeyTokenTTL    = "token_ttl"
+	CtxKeyUserID      = "user_id"
+	CtxKeyUsername    = "username"
+	CtxKeyDisplayName = "display_name"
+	CtxKeyScopes      = "scopes"
+)
+
+// Claims is the session identity ValidateToken stores on the gin context.
+// Treat Scopes as read-only; it is the stored map, not a copy.
+type Claims struct {
+	UserID      int64
+	Username    string
+	DisplayName string
+	Scopes      map[string]string
+}
+
+// GetClaims returns the identity stored by ValidateToken. ok is false when
+// the auth middleware did not run.
+func GetClaims(c *gin.Context) (Claims, bool) {
+	v, exists := c.Get(CtxKeyUserID)
+	uid, ok := v.(int64)
+	if !exists || !ok {
+		return Claims{}, false
+	}
+	return Claims{
+		UserID:      uid,
+		Username:    c.GetString(CtxKeyUsername),
+		DisplayName: c.GetString(CtxKeyDisplayName),
+		Scopes:      c.GetStringMapString(CtxKeyScopes),
+	}, true
+}
+
 // AuthMiddleware provides JWT token validation
 type AuthMiddleware struct {
 	jwtService jwt.Service
@@ -56,11 +90,11 @@ func (m *AuthMiddleware) ValidateToken() gin.HandlerFunc {
 		}
 
 		// Store TTL and user claims in context for downstream handlers
-		c.Set("token_ttl", ttl)
-		c.Set("user_id", claims.UserID)
-		c.Set("username", claims.Username)
-		c.Set("display_name", claims.DisplayName)
-		c.Set("scopes", claims.Scopes)
+		c.Set(CtxKeyTokenTTL, ttl)
+		c.Set(CtxKeyUserID, claims.UserID)
+		c.Set(CtxKeyUsername, claims.Username)
+		c.Set(CtxKeyDisplayName, claims.DisplayName)
+		c.Set(CtxKeyScopes, claims.Scopes)
 
 		c.Next()
 	}
@@ -73,7 +107,7 @@ func (m *AuthMiddleware) AddTTLHeader() gin.HandlerFunc {
 		c.Next()
 
 		// After request processing, add TTL header if available in context
-		if ttl, exists := c.Get("token_ttl"); exists {
+		if ttl, exists := c.Get(CtxKeyTokenTTL); exists {
 			if ttlValue, ok := ttl.(int64); ok && ttlValue > 0 {
 				c.Header("X-Token-TTL", fmt.Sprintf("%d", ttlValue))
 			}

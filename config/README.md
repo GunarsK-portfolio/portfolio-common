@@ -50,6 +50,11 @@ whitespace-only values keep the default. Anything else (e.g. `yes`, `on`,
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` - Required
 - `DB_SSLMODE` - Optional (disable, require, verify-ca, verify-full)
 
+### RedisConfig
+
+- `REDIS_HOST`, `REDIS_PORT` - Required
+- Optional: `REDIS_PASSWORD`, `REDIS_TLS` (default false)
+
 ### RabbitMQConfig
 
 - `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` - Required
