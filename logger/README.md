@@ -7,7 +7,11 @@ Structured logging with slog and Gin middleware.
 ```go
 import "github.com/GunarsK-portfolio/portfolio-common/logger"
 
-appLogger := logger.New(logger.Config{
+// From LOG_LEVEL / LOG_FORMAT / LOG_SOURCE environment variables
+appLogger := logger.NewFromEnv("my-service")
+
+// Or explicit configuration
+appLogger = logger.New(logger.Config{
     Level:       "info",
     Format:      "json",
     ServiceName: "my-service",

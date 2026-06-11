@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/GunarsK-portfolio/portfolio-common/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -63,7 +64,7 @@ func RequestLogger(logger *slog.Logger) gin.HandlerFunc {
 		}
 
 		// Add user ID if authenticated
-		if userID, exists := c.Get("user_id"); exists {
+		if userID, exists := c.Get(middleware.CtxKeyUserID); exists {
 			attrs = append(attrs, "user_id", userID)
 			// Also add to context for future use
 			if uid, ok := userID.(int64); ok {

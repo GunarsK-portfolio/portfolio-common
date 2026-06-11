@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/GunarsK-portfolio/portfolio-common/logger"
+	"github.com/GunarsK-portfolio/portfolio-common/middleware"
 	"github.com/GunarsK-portfolio/portfolio-common/repository"
 	"github.com/gin-gonic/gin"
 )
@@ -112,7 +113,7 @@ func GetUserAgent(c *gin.Context) *string {
 
 // GetUserID retrieves user ID from context (set by auth middleware after token validation)
 func GetUserID(c *gin.Context) *int64 {
-	if userID, exists := c.Get("user_id"); exists {
+	if userID, exists := c.Get(middleware.CtxKeyUserID); exists {
 		if id, ok := userID.(int64); ok {
 			return &id
 		}

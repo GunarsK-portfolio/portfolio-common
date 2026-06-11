@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/GunarsK-portfolio/portfolio-common/config"
 )
 
 // ContextKey is the type for context keys
@@ -63,6 +65,17 @@ func New(cfg Config) *slog.Logger {
 	}
 
 	return logger
+}
+
+// NewFromEnv creates a logger from the standard LOG_LEVEL, LOG_FORMAT, and
+// LOG_SOURCE environment variables. A malformed LOG_SOURCE panics at startup.
+func NewFromEnv(serviceName string) *slog.Logger {
+	return New(Config{
+		Level:       config.GetEnv("LOG_LEVEL", ""),
+		Format:      config.GetEnv("LOG_FORMAT", ""),
+		ServiceName: serviceName,
+		AddSource:   config.GetEnvBool("LOG_SOURCE", false),
+	})
 }
 
 // WithContext creates a logger with context values

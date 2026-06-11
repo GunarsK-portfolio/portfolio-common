@@ -1,0 +1,2 @@
+# LF everywhere so gofmt on Windows checkouts does not produce CRLF diffs.
+* text=auto eol=lf

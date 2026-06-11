@@ -63,7 +63,7 @@ func RequirePermission(resource, level string) gin.HandlerFunc {
 		panic("middleware: invalid permission level: " + level)
 	}
 	return func(c *gin.Context) {
-		scopes, exists := c.Get("scopes")
+		scopes, exists := c.Get(CtxKeyScopes)
 		if !exists {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return

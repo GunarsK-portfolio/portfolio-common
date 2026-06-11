@@ -160,7 +160,7 @@ func TestRequirePermission(t *testing.T) {
 			// Middleware to inject scopes into context
 			router.Use(func(c *gin.Context) {
 				if tt.scopesExists {
-					c.Set("scopes", tt.scopes)
+					c.Set(CtxKeyScopes, tt.scopes)
 				}
 				c.Next()
 			})
@@ -324,7 +324,7 @@ func TestRequirePermission_ForbiddenResponseDetails(t *testing.T) {
 
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		c.Set("scopes", map[string]string{"projects": "read"})
+		c.Set(CtxKeyScopes, map[string]string{"projects": "read"})
 		c.Next()
 	})
 	router.GET("/test", RequirePermission("projects", "delete"))
