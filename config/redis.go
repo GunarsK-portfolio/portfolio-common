@@ -12,7 +12,7 @@ type RedisConfig struct {
 	Host     string `validate:"required"`
 	Port     int    `validate:"required,min=1,max=65535"`
 	Password string // Optional, no validation
-	TLS      bool   // REDIS_TLS, mirrors RabbitMQConfig.TLS
+	TLS      bool   // REDIS_TLS, default false; mirrors RabbitMQConfig.TLS
 }
 
 // NewRedisConfig loads Redis configuration from environment variables.

@@ -42,7 +42,7 @@ func CallInto(ctx context.Context, pool *pgxpool.Pool, auth AuthContext, dest an
 }
 
 // CallJSON runs an audited query returning JSONB (the SELECT schema.fn(...)
-// convention).
+// convention). SQL NULL scans to a nil RawMessage.
 func CallJSON(ctx context.Context, pool *pgxpool.Pool, auth AuthContext, query string, args ...any) (json.RawMessage, error) {
 	var result json.RawMessage
 	err := CallInto(ctx, pool, auth, &result, query, args...)
@@ -50,6 +50,7 @@ func CallJSON(ctx context.Context, pool *pgxpool.Pool, auth AuthContext, query s
 }
 
 // CallBool runs an audited query returning a boolean (delete functions).
+// A SQL NULL result fails the scan.
 func CallBool(ctx context.Context, pool *pgxpool.Pool, auth AuthContext, query string, args ...any) (bool, error) {
 	var result bool
 	err := CallInto(ctx, pool, auth, &result, query, args...)
